@@ -402,6 +402,69 @@ describe("room to grow", () => {
   });
 });
 
+describe("rounded rectangles", () => {
+  const long = {
+    rect: {
+      x: 0.09597475165562915,
+      y: 0.6225702962823174,
+      w: 0.29974648178807944,
+      h: 0.2143800717116437,
+    },
+    pageRect: { x: 100.984375, y: 215.8671875, w: 90.5234375, h: 35.5 },
+  };
+
+  it("keeps a thread's numbers short: 4 places for a fraction, whole pixels for the page", () => {
+    const [stored] = parseItems(appendItem(null, item(long))!);
+    assert.deepEqual(stored!.rect, {
+      x: 0.096,
+      y: 0.6226,
+      w: 0.2997,
+      h: 0.2144,
+    });
+    assert.deepEqual(stored!.pageRect, { x: 101, y: 216, w: 91, h: 36 });
+  });
+
+  it("keeps a pin a pin, and a region a region", () => {
+    const pin = parseItems(
+      appendItem(
+        null,
+        item({
+          rect: { x: 0.5, y: 0.5, w: 0, h: 0 },
+          pageRect: { x: 10.4, y: 20.6, w: 0, h: 0 },
+        }),
+      )!,
+    )[0]!;
+    assert.deepEqual(pin.pageRect, { x: 10, y: 21, w: 0, h: 0 });
+    // the smallest drag the widget takes for a region is 8 pixels
+    const small = parseItems(
+      appendItem(null, item({ pageRect: { x: 0, y: 0, w: 8.2, h: 3 } }))!,
+    )[0]!;
+    assert.ok(small.pageRect.w >= 8);
+  });
+
+  it("rounds a moved thread too, and leaves older threads' numbers alone", () => {
+    const before = body();
+    const moved = moveItem(before, "two", { selector: "main", ...long })!;
+    const [first, second] = parseItems(moved);
+    assert.deepEqual(second!.pageRect, { x: 101, y: 216, w: 91, h: 36 });
+    assert.deepEqual(second!.rect, {
+      x: 0.096,
+      y: 0.6226,
+      w: 0.2997,
+      h: 0.2144,
+    });
+    assert.deepEqual(first, parseItems(before)[0]);
+  });
+
+  it("leaves no long numbers in the hidden data", () => {
+    const text = appendItem(null, item(long))!;
+    const marker = /review-item:([A-Za-z0-9_-]+)/.exec(text)![1]!;
+    const json = Buffer.from(marker, "base64url").toString();
+    assert.ok(json.includes('"x":0.096'), json);
+    assert.ok(!/\d\.\d{5,}/.test(json), json);
+  });
+});
+
 describe("moveItem", () => {
   const to = {
     selector: "main > div.card",

@@ -281,6 +281,23 @@ function consoleDetails(entries: ConsoleEntry[]) {
   return `<details><summary>Console (${entries.length}${errors ? `, ${errors} errors` : ""})</summary>\n\n\`\`\`\n${body}\n\`\`\`\n\n</details>`;
 }
 
+/**
+ * A rectangle's numbers to `decimals` places. The widget measures to 17 digits,
+ * and a thread's data carries eight numbers: that's room in a comment for
+ * nothing a person (or the page) could tell apart. A fraction of an element
+ * needs 4 places (a pixel in 10,000); a position on the page needs none.
+ */
+function compactRect(rect: Rect, decimals: number): Rect {
+  const scale = 10 ** decimals;
+  const round = (n: number) => Math.round(n * scale) / scale;
+  return {
+    x: round(rect.x),
+    y: round(rect.y),
+    w: round(rect.w),
+    h: round(rect.h),
+  };
+}
+
 /** "W×H at (x, y)" for a region, "pin at (x, y)" for a click. */
 function where({ x, y, w, h }: Rect) {
   return w || h
@@ -299,8 +316,8 @@ export function formatItem(item: ReviewItem) {
     text: item.text,
     pageUrl: item.pageUrl,
     selector: item.selector,
-    rect: item.rect,
-    pageRect: item.pageRect,
+    rect: compactRect(item.rect, 4),
+    pageRect: compactRect(item.pageRect, 0),
     createdAt: createdAt.toISOString(),
   };
 
@@ -455,7 +472,12 @@ export function moveItem(
   const check = found.item.resolved ? "x" : " ";
   const { selector, rect, pageRect, elementText } = location;
   const head = headLines(
-    { ...itemData(found.item), selector, rect, pageRect },
+    {
+      ...itemData(found.item),
+      selector,
+      rect: compactRect(rect, 4),
+      pageRect: compactRect(pageRect, 0),
+    },
     check,
   );
 
