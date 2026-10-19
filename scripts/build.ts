@@ -42,7 +42,6 @@ if (!widgetOnly) {
   await build({
     entry: {
       "server/index": "src/server/index.ts",
-      "server/nextjs": "src/server/nextjs.ts",
       "shared/index": "src/shared/index.ts",
     },
     outDir: "dist",

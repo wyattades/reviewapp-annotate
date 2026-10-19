@@ -62,8 +62,7 @@ type Authorized =
 
 /**
  * The reviewapp-annotate server: a function from a web-standard `Request` to a
- * `Response`, so it runs on anything that speaks them. (`./nextjs` wraps it as
- * Next.js route handlers.)
+ * `Response`, so it runs on anything that speaks them.
  *
  * - `GET {basePath}`: who's signed in, the PR, and every thread
  * - `POST {basePath}`: add a thread, or with `?reply_to=<id>` a reply
