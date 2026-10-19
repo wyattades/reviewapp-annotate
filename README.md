@@ -69,7 +69,7 @@ Or load it from a CDN, pinned to a version. A CDN can't know where your server i
 
 ```html
 <script
-  src="https://cdn.jsdelivr.net/npm/reviewapp-annotate@0.4.1/dist/widget.js"
+  src="https://cdn.jsdelivr.net/npm/reviewapp-annotate@0.4.2/dist/widget.js"
   data-api="https://your-app.example.com/api/reviewapp-annotate"
 ></script>
 ```

@@ -69,8 +69,12 @@ const unique = (hosts: (string | null)[]) => [
   ...new Set(hosts.filter((h): h is string => !!h)),
 ];
 
-/** "Preview URL: https://…" written as plain text, not a link. */
-const BARE_PREVIEW_URL = /preview url:?\**\s*(https?:\/\/[^\s)<>'"]+)/gi;
+/**
+ * "Preview URL: https://…" written as plain text, not a link: the rest of its
+ * line, which can name several ("Preview URL: https://a.dev, https://b.dev (commit 4f2c1a9)").
+ */
+const BARE_PREVIEW_LINE = /preview url:?\**\s*([^\n]*)/gi;
+const URL_IN_TEXT = /https?:\/\/[^\s,;)<>'"]+/g;
 
 /**
  * The hostnames of links that say they're a preview: the link's own text
@@ -84,8 +88,11 @@ export function previewHosts(body: string) {
         (/^https?:\/\//.test(link.text) && /preview url:?$/i.test(link.before)),
     )
     .map((link) => hostnameOf(link.url));
-  const bare = [...body.matchAll(BARE_PREVIEW_URL)].map((m) =>
-    hostnameOf(m[1]!),
+  const bare = [...body.matchAll(BARE_PREVIEW_LINE)].flatMap((line) =>
+    [...line[1]!.matchAll(URL_IN_TEXT)].map((url) =>
+      // a sentence's full stop or colon isn't part of the address
+      hostnameOf(url[0].replace(/[.:]+$/, "")),
+    ),
   );
   return unique([...fromLinks, ...bare]);
 }

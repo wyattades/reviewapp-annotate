@@ -105,6 +105,27 @@ describe("cloudflare", () => {
     ]);
   });
 
+  it("reads every address on a Preview URL line, a custom domain and workers.dev together", () => {
+    // as left on a real PR once the Worker had a custom domain: two URLs, comma-separated
+    const body = `## 🚀 Deploying Preview to Cloudflare 🚀
+<!-- Preview URL -->
+### Preview URL: https://cursor-feature-phase-1-2-4dc5.landing2.acme.com, https://cursor-feature-phase-1-2-4dc5-acme-landing.acme-dev.workers.dev (commit 4066510)
+###### This URL reflects your latest Preview deployment`;
+    assert.deepEqual(cloudflare().parseUrls(body), [
+      "cursor-feature-phase-1-2-4dc5.landing2.acme.com",
+      "cursor-feature-phase-1-2-4dc5-acme-landing.acme-dev.workers.dev",
+    ]);
+  });
+
+  it("doesn't take a trailing full stop or colon for part of the address", () => {
+    assert.deepEqual(
+      cloudflare().parseUrls(
+        "Cloudflare\n### Preview URL: https://a.acme.com. Ready.\nPreview URL:\nhttps://b.acme.com:",
+      ),
+      ["a.acme.com", "b.acme.com"],
+    );
+  });
+
   it("reads Pages' preview and branch preview URLs, custom domains too", () => {
     const body = `## Deploying 2020-website-archive with Cloudflare Pages
 <table><tr><td><strong>Preview URL:</strong></td><td>
