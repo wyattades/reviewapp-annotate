@@ -26,7 +26,19 @@ const JPEG_DATA_URL = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/;
 
 const textSchema = z.object({ text: z.string().trim().min(1).max(4000) });
 
-const patchSchema = z.union([z.object({ resolved: z.boolean() }), textSchema]);
+/** Points a thread somewhere else on the page (a dragged pin). */
+const moveSchema = z.object({
+  selector: z.string().min(1).max(500),
+  rect: rectSchema,
+  pageRect: rectSchema,
+  elementText: z.string().max(500).nullish(),
+});
+
+const patchSchema = z.union([
+  z.object({ resolved: z.boolean() }),
+  textSchema,
+  moveSchema,
+]);
 
 const commentSchema = z.object({
   text: z.string().trim().min(1).max(4000),
@@ -66,7 +78,8 @@ type Authorized =
  *
  * - `GET {basePath}`: who's signed in, the PR, and every thread
  * - `POST {basePath}`: add a thread, or with `?reply_to=<id>` a reply
- * - `PATCH {basePath}?id=` (and `&reply=`): `{ resolved }`, or `{ text }` to edit your own
+ * - `PATCH {basePath}?id=` (and `&reply=`): `{ resolved }`, `{ text }` to edit your own, or
+ *   `{ selector, rect, pageRect }` to move the thread
  * - `DELETE {basePath}?id=` (and `&reply=`): remove your own
  * - `GET {basePath}/connect?origin=`: the sign-in popup
  * - `GET {basePath}/widget.js`: the browser widget, for review apps to load
@@ -275,6 +288,10 @@ export function createHandler(config: ReviewAnnotateConfig) {
       if ("resolved" in edit) {
         // a reply has no checkbox of its own
         return replyId ? false : store.resolve(target, id, edit.resolved);
+      }
+      if ("selector" in edit) {
+        // nor a place on the page
+        return replyId ? false : store.move(target, id, edit);
       }
       return replyId
         ? store.editReply(target, id, replyId, claims.userId, edit.text)

@@ -71,7 +71,7 @@
   /* ---------- the widget (from src/widget/styles.ts) ---------- */
   /* the widget's default theme (src/widget/styles.ts) */
   body { --ra-ink: #1c1917; --ra-paper: #ffffff; --ra-paper-2: #faf6ea; --ra-line: #ece3c8; --ra-muted: #78716c;
-    --ra-accent: #d4a83a; --ra-accent-ink: #1c1917; --ra-sticky: #efe3c2; --ra-sticky-ink: #1c1917; --ra-resolved: #5f8a3e;
+    --ra-accent: #d4a83a; --ra-accent-ink: #1c1917; --ra-sticky: #d4a83a; --ra-sticky-ink: #1c1917; --ra-resolved: #5f8a3e;
     --ra-pill: #1c1917; --ra-pill-ink: #f6edd2; --ra-shadow: 0 8px 28px rgba(28,25,23,.26);
     --bg-a: #f3e9cc; --bg-b: #e9e7e2; --bg: #f8f6f0; }
   .w { font: 13px/1.4 system-ui, sans-serif; }
@@ -116,7 +116,7 @@
   .w-pin .stack .av:first-child { margin-left: 0; }
   .w-pin .stack .av:nth-child(1) { z-index: 3; } .w-pin .stack .av:nth-child(2) { z-index: 2; } .w-pin .stack .av:nth-child(3) { z-index: 1; }
   .w-pin .stack .av { position: relative; }
-  .w-pin.open .count { background: var(--ra-accent); color: var(--ra-accent-ink); }
+  .w-pin.open .count { background: var(--ra-pill); color: var(--ra-pill-ink); }
 
   .w-thread { width: 340px; }
   .w-msg { padding: 12px 14px; } .w-msg + .w-msg { border-top: 1px solid var(--ra-line); }
@@ -252,17 +252,13 @@ if (!new URLSearchParams(location.search).has('new')) document.body.classList.ad
     <!-- widget overlays, positioned within .page -->
     <div class="w">
       <!-- existing threads -->
-      <div class="w-pin only-new" style="left: 484px; top: 240px;">
+      <div class="w-pin only-new" style="left: 534px; top: 217px;">
         <span class="count">2</span>
         <span class="stack"><span class="av" style="background:#db2777">GH</span><span class="av" style="background:#2563eb">AL</span></span>
       </div>
-      <div class="w-pin resolved" style="left: 134px; top: 8px;">
-        <span class="count">1</span>
-        <span class="stack"><span class="av" style="background:#ea580c">KJ</span></span>
-      </div>
 
       <!-- the reply variant: Grace's thread, open -->
-      <div class="w-pin open only-reply" style="left: 484px; top: 240px;">
+      <div class="w-pin open only-reply" style="left: 534px; top: 217px;">
         <span class="count">2</span>
         <span class="stack"><span class="av" style="background:#db2777">GH</span><span class="av" style="background:#2563eb">AL</span></span>
       </div>

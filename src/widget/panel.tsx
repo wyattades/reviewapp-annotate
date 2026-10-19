@@ -1,5 +1,6 @@
 import { Avatar } from "./avatar";
 import { pageKey } from "./geometry";
+import { CheckCircleIcon } from "./icons";
 import { formatTime } from "./time";
 import type { ShownItem } from "./types";
 
@@ -20,10 +21,13 @@ export function Panel({
   onUnhover: () => void;
   onPick: (item: ShownItem) => void;
 }) {
+  const open = items.filter((item) => !item.resolved);
+  const resolved = items.filter((item) => item.resolved);
   const header = (
     <div class="head">
       <span class="muted">
-        {items.length} {items.length === 1 ? "thread" : "threads"}
+        {open.length} open
+        {resolved.length > 0 && ` · ${resolved.length} resolved`}
       </span>
       <a href={commentUrl} target="_blank" rel="noreferrer">
         Open on GitHub ↗
@@ -38,35 +42,44 @@ export function Panel({
       </div>
     );
   }
+
+  const row = (item: ShownItem) => {
+    const replies = item.replies.length;
+    return (
+      <button
+        key={item.id}
+        type="button"
+        class={`item${item.resolved ? " resolved" : ""}`}
+        onPointerEnter={() => onHover(item.id)}
+        onPointerLeave={onUnhover}
+        onClick={() => onPick(item)}
+      >
+        <Avatar name={item.author} src={item.avatar} size={24} />
+        <div>
+          <div class="body">{item.text}</div>
+          <div class="muted">
+            {item.resolved && (
+              <span class="badge" title="Resolved">
+                <CheckCircleIcon />
+              </span>
+            )}
+            {item.author} · {formatTime(item.createdAt)}
+            {replies > 0 && ` · ${replies} repl${replies === 1 ? "y" : "ies"}`}
+            {pageKey(item.pageUrl) === pageKey(location.href)
+              ? ""
+              : ` · ${new URL(item.pageUrl, location.href).pathname}`}
+          </div>
+        </div>
+      </button>
+    );
+  };
+
   return (
     <div class="panel card" style={style}>
       {header}
-      {items.map((item) => {
-        const replies = item.replies.length;
-        return (
-          <button
-            key={item.id}
-            type="button"
-            class={`item${item.resolved ? " resolved" : ""}`}
-            onPointerEnter={() => onHover(item.id)}
-            onPointerLeave={onUnhover}
-            onClick={() => onPick(item)}
-          >
-            <Avatar name={item.author} src={item.avatar} size={24} />
-            <div>
-              <div class="body">{item.text}</div>
-              <div class="muted">
-                {item.author} · {formatTime(item.createdAt)}
-                {replies > 0 &&
-                  ` · ${replies} repl${replies === 1 ? "y" : "ies"}`}
-                {pageKey(item.pageUrl) === pageKey(location.href)
-                  ? ""
-                  : ` · ${new URL(item.pageUrl, location.href).pathname}`}
-              </div>
-            </div>
-          </button>
-        );
-      })}
+      {open.map(row)}
+      {resolved.length > 0 && <div class="section">Resolved</div>}
+      {resolved.map(row)}
     </div>
   );
 }

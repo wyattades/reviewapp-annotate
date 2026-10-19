@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { AutoTextarea } from "./auto-textarea";
 import { Avatar } from "./avatar";
 import { CheckCircleIcon, MoreIcon, SendIcon } from "./icons";
-import { THREAD_WIDTH } from "./styles";
+import { PIN_HEIGHT, THREAD_WIDTH } from "./styles";
 import { formatTime } from "./time";
 import type { Rect, ShownItem, StoredReply } from "./types";
 
@@ -15,17 +15,18 @@ export type ThreadActions = {
   deleteReply: (item: ShownItem, reply: StoredReply) => void;
 };
 
-/** Under the pin if there's room, else above it, always on screen. */
+/** Under the rectangle if there's room, else above its pin, always on screen. */
 function place(at: Rect) {
   const left = Math.max(8, Math.min(at.x, innerWidth - THREAD_WIDTH - 8));
-  const below = at.y + 36;
+  const below = at.y + at.h + 8;
   if (innerHeight - below >= 320) {
     return { left, top: below, maxHeight: innerHeight - below - 8 };
   }
+  const pinTop = at.y - PIN_HEIGHT;
   return {
     left,
-    bottom: Math.max(8, innerHeight - at.y + 8),
-    maxHeight: Math.max(160, at.y - 16),
+    bottom: Math.max(8, innerHeight - pinTop + 8),
+    maxHeight: Math.max(160, pinTop - 16),
   };
 }
 

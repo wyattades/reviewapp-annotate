@@ -3,6 +3,9 @@ const Z = 2147483640;
 /** The pill's height, which popovers are placed against (`popoverStyle`). */
 export const PILL_HEIGHT = 36;
 
+/** A pin sits on its rectangle's top-left corner, which its pointed bottom-left corner marks. */
+export const PIN_HEIGHT = 28;
+
 /** Widths the popovers are placed with (`popoverStyle`). */
 export const PANEL_WIDTH = 340;
 export const TOASTS_WIDTH = 360;
@@ -27,8 +30,8 @@ export const STYLES = `
     --ra-accent: #d4a83a;
     --ra-accent-hover: #c0952b;
     --ra-accent-ink: #1c1917;
-    --ra-sticky: #efe3c2;
-    --ra-sticky-hover: #e6d6a8;
+    --ra-sticky: #d4a83a;
+    --ra-sticky-hover: #c0952b;
     --ra-sticky-ink: #1c1917;
     --ra-resolved: #5f8a3e;
     --ra-resolved-ink: #ffffff;
@@ -112,17 +115,19 @@ export const STYLES = `
 
   /* --- pins: a count (a sticky note), then up to three avatars behind it, each half hidden by the one before --- */
   .pin { position: fixed; z-index: ${Z + 3}; display: flex; align-items: center; padding: 0; border: 0;
-    background: none; cursor: pointer; }
-  .pin .count { position: relative; z-index: 10; min-width: 28px; height: 28px; padding: 0 8px; display: flex;
+    background: none; cursor: pointer; touch-action: none; }
+  .pin.dragging { cursor: grabbing; z-index: ${Z + 4}; }
+  .pin.dragging .count { transform: scale(1.12); box-shadow: 0 6px 16px rgba(28,25,23,.35); }
+  .pin .count { position: relative; z-index: 10; min-width: ${PIN_HEIGHT}px; height: ${PIN_HEIGHT}px; padding: 0 8px; display: flex;
     align-items: center; justify-content: center; border-radius: 8px 8px 8px 2px; border: 2px solid #fff;
     background: var(--ra-sticky); color: var(--ra-sticky-ink); font-weight: 700;
-    box-shadow: 0 2px 8px rgba(28,25,23,.3); transform-origin: top left; transition: background .12s, transform .12s; }
+    box-shadow: 0 2px 8px rgba(28,25,23,.3); transform-origin: bottom left; transition: background .12s, transform .12s; }
   .pin:hover .count { background: var(--ra-sticky-hover); transform: scale(1.12); }
   .pin .stack { display: flex; margin-left: -12px; }
   .pin .stack .avatar { position: relative; border: 2px solid #fff; margin-left: -12px; box-shadow: 0 1px 4px rgba(28,25,23,.3); }
   .pin .stack .avatar:first-child { margin-left: 0; }
-  .pin.open .count { background: var(--ra-accent); color: var(--ra-accent-ink); }
-  .pin.open:hover .count { background: var(--ra-accent-hover); }
+  .pin.open .count { background: var(--ra-pill); color: var(--ra-pill-ink); }
+  .pin.open:hover .count { background: var(--ra-pill-hover); }
   .pin.resolved { opacity: .75; }
   .pin.resolved .count { background: var(--ra-resolved); color: var(--ra-resolved-ink); }
   .pin.resolved:hover .count { background: var(--ra-resolved); filter: brightness(1.12); }
@@ -167,11 +172,15 @@ export const STYLES = `
   .panel .item { display: flex; gap: 8px; width: 100%; padding: 8px; border: 0; border-radius: 6px; background: none;
     text-align: left; cursor: pointer; }
   .panel .item:hover { background: var(--ra-paper-2); }
-  .panel .item.resolved .body { opacity: .5; text-decoration: line-through; }
+  .panel .item.resolved .body, .panel .item.resolved .avatar { opacity: .6; }
+  .panel .section { margin: 6px 8px 2px; padding-top: 8px; border-top: 1px solid var(--ra-line); color: var(--ra-muted);
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .panel .badge { display: inline-flex; align-items: center; margin-right: 4px; vertical-align: -2px; color: var(--ra-resolved); }
+  .panel .badge svg { width: 13px; height: 13px; }
   .panel .item .body { word-break: break-word; }
   .panel .empty { padding: 8px; color: var(--ra-muted); }
   .panel .head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px 8px; }
-  .panel .head a { color: var(--ra-accent); text-decoration: none; }
+  .panel .head a { color: #0969da; text-decoration: none; }
   .panel .head a:hover { text-decoration: underline; }
 
   /* --- toasts --- */

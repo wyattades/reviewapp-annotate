@@ -9,6 +9,7 @@ import {
   editReplyText,
   formatItem,
   MAX_COMMENT_LENGTH,
+  moveItem,
   parseItems,
   removeItem,
   removeReply,
@@ -272,6 +273,49 @@ describe("editItemText", () => {
       editItemText(body(), "one", "x", (i) => i.authorId === "x", "t"),
       null,
     );
+  });
+});
+
+describe("moveItem", () => {
+  const to = {
+    selector: "main > div.card",
+    rect: { x: 0, y: 0.5, w: 1, h: 0.25 },
+    pageRect: { x: 10, y: 640, w: 320, h: 60 },
+    elementText: "Card title",
+  };
+
+  it("points the thread elsewhere: its data and its meta line, nothing else", () => {
+    const before = body();
+    const next = moveItem(before, "one", to)!;
+    const [first] = parseItems(next);
+    assert.equal(first!.selector, "main > div.card");
+    assert.deepEqual(first!.rect, to.rect);
+    assert.deepEqual(first!.pageRect, to.pageRect);
+    assert.equal(first!.text, "First\nwith two lines");
+    assert.equal(first!.replies.length, 1);
+    assert.ok(next.includes('📍 `main > div.card` "Card title"'));
+    assert.ok(next.includes("320×60 at (10, 640)"));
+    // the screenshot and console log stay
+    assert.ok(next.includes("1.jpg") && next.includes("[log] hi"));
+    // the other threads are untouched
+    assert.equal(next.split("\n").length, before.split("\n").length);
+    assert.deepEqual(parseItems(next).slice(1), parseItems(before).slice(1));
+  });
+
+  it("keeps a ticked-off box ticked, and turns a region into a pin", () => {
+    const ticked = setResolved(body(), "two", true)!;
+    const next = moveItem(ticked, "two", {
+      ...to,
+      pageRect: { x: 5, y: 6, w: 0, h: 0 },
+      elementText: null,
+    })!;
+    const [, second] = parseItems(next);
+    assert.equal(second!.resolved, true);
+    assert.ok(next.includes("📍 `main > div.card` · pin at (5, 6)"));
+  });
+
+  it("is null for an unknown thread", () => {
+    assert.equal(moveItem(body(), "nope", to), null);
   });
 });
 

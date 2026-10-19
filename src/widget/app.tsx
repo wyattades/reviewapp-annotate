@@ -10,7 +10,7 @@ import { Pins } from "./pins";
 import { SelectOverlay } from "./select-overlay";
 import { PANEL_WIDTH, STYLES, TOASTS_WIDTH } from "./styles";
 import { Thread, type ThreadActions } from "./thread";
-import type { Context, Draft, ShownItem, Target } from "./types";
+import type { Context, Draft, Rect, ShownItem, Target } from "./types";
 
 const POLL_MS = 10_000;
 const TOAST_MS = 6_000;
@@ -413,6 +413,22 @@ export function App({ host }: { host: HTMLElement }) {
       ),
   };
 
+  /** A dragged pin: the thread now points at whatever is under its rectangle there. */
+  const moveItem = (item: ShownItem, rect: Rect) => {
+    const target = describeTarget(rect, host);
+    const location = {
+      selector: target.selector,
+      rect: target.relativeRect,
+      pageRect: target.pageRect,
+    };
+    void change(patchItem(item.id, location), () =>
+      send("PATCH", `?id=${enc(item.id)}`, {
+        ...location,
+        elementText: target.elementText,
+      }),
+    );
+  };
+
   const pickItem = (item: ShownItem) => {
     if (pageKey(item.pageUrl) !== pageKey(location.href)) {
       location.href = item.pageUrl;
@@ -445,6 +461,7 @@ export function App({ host }: { host: HTMLElement }) {
           onUnhover={unhover}
           onOpen={(id) => openThread(openId === id ? null : id)}
           onResolve={actions.resolve}
+          onMove={moveItem}
         />
       )}
       {context && open && onThisPage && (

@@ -5,6 +5,8 @@ import {
   COMMENT_MARKER,
   editItemText,
   editReplyText,
+  moveItem,
+  type ItemLocation,
   parseItems,
   removeItem,
   removeReply,
@@ -265,6 +267,10 @@ export function createThreadStore({
     /** Anyone can tick a thread off; only its author can edit or delete it. */
     resolve: (target: ReviewTarget, id: string, resolved: boolean) =>
       updateThread(target, (body) => setResolved(body, id, resolved)),
+
+    /** Anyone can point a thread somewhere else, like ticking it off. */
+    move: (target: ReviewTarget, id: string, location: ItemLocation) =>
+      updateThread(target, (body) => moveItem(body, id, location)),
 
     remove: (target: ReviewTarget, id: string, userId: string) =>
       updateThread(target, (body) =>

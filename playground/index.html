@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>reviewapp-annotate playground</title>
+    <style>
+      body { margin: 0; font: 15px/1.5 system-ui, sans-serif; color: #14261f; background: #fbfaf7; }
+      header { display: flex; align-items: center; gap: 24px; padding: 16px 40px; border-bottom: 1px solid #eeebe3; }
+      header b { font-size: 18px; }
+      header .sp { flex: 1; }
+      main { max-width: 960px; margin: 0 auto; padding: 32px 40px 120px; }
+      h1 { font-size: 40px; line-height: 1.1; letter-spacing: -1px; margin: 24px 0 8px; }
+      .plans { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 28px; }
+      .plan { flex: 1; min-width: 220px; padding: 22px; border-radius: 16px; background: #fff; border: 1px solid #ebe7dc; }
+      .plan button { width: 100%; margin-top: 16px; height: 40px; border-radius: 10px; border: 1px solid #d9d4c7; background: #fff; font-weight: 600; }
+      #plan-team { border: 2px solid #0f766e; }
+      #plan-team button { background: #0f766e; color: #fff; border-color: #0f766e; }
+      .note { margin-top: 48px; padding: 16px; border-radius: 12px; background: #fff; border: 1px dashed #d9d4c7; color: #5a625e; }
+      .tall { height: 900px; margin-top: 40px; border-radius: 16px; background: linear-gradient(#f1efe8, #fbfaf7); padding: 24px; color: #8a8f8b; }
+    </style>
+    <!-- the fake server, then the widget (rebuilt by `pnpm dev`) pointed at it -->
+    <script src="fake-api.js"></script>
+    <script src="widget.js" data-api="https://fake-api.test/api/reviewapp-annotate"></script>
+  </head>
+  <body>
+    <header>
+      <b>Lumen</b><span>Product</span><span>Pricing</span><span>Docs</span>
+      <span class="sp"></span>
+      <button onclick="resetPlayground()">Reset threads</button>
+    </header>
+    <main>
+      <h1>Simple pricing for growing teams</h1>
+      <p>Start free. Upgrade when your team does.</p>
+      <div class="plans">
+        <div class="plan" id="plan-starter"><h3>Starter</h3><p>$0 / month</p><button>Get started</button></div>
+        <div class="plan" id="plan-team"><h3>Team</h3><p>$24 / seat / month</p><button>Start your 14-day free trial</button></div>
+        <div class="plan" id="plan-enterprise"><h3>Enterprise</h3><p>Custom</p><button>Contact sales</button></div>
+      </div>
+      <div class="note">
+        The widget's playground: comments, replies, resolving, editing and moving pins all work, against a
+        fake server in this page (<code>fake-api.js</code>), saved in localStorage. No GitHub, no sign-in.
+      </div>
+      <div class="tall">Scroll down: pins stay on their elements.</div>
+    </main>
+  </body>
+</html>

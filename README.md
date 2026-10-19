@@ -69,7 +69,7 @@ Or load it from a CDN, pinned to a version. A CDN can't know where your server i
 
 ```html
 <script
-  src="https://cdn.jsdelivr.net/npm/reviewapp-annotate@0.1.0/dist/widget.js"
+  src="https://cdn.jsdelivr.net/npm/reviewapp-annotate@0.2.0/dist/widget.js"
   data-api="https://your-app.example.com/api/reviewapp-annotate"
 ></script>
 ```
@@ -175,10 +175,13 @@ The comment starts with `<!-- reviewapp-annotate -->`. If another tool uses the 
 
 ```sh
 pnpm install
+pnpm dev         # the widget's playground at http://localhost:4321, rebuilt on save
 pnpm typecheck
 pnpm test
 pnpm build
 ```
+
+The playground (`playground/`) runs the widget against a fake server in the page, so you can try commenting, replying, resolving and moving pins without GitHub or a deployed review app.
 
 ## License
 

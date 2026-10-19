@@ -191,6 +191,13 @@ function consoleDetails(entries: ConsoleEntry[]) {
   return `<details><summary>Console (${entries.length}${errors ? `, ${errors} errors` : ""})</summary>\n\n\`\`\`\n${body}\n\`\`\`\n\n</details>`;
 }
 
+/** "W×H at (x, y)" for a region, "pin at (x, y)" for a click. */
+function where({ x, y, w, h }: Rect) {
+  return w || h
+    ? `${Math.round(w)}×${Math.round(h)} at (${Math.round(x)}, ${Math.round(y)})`
+    : `pin at (${Math.round(x)}, ${Math.round(y)})`;
+}
+
 export function formatItem(item: ReviewItem) {
   const { createdAt, elementText, viewport, screenshotUrls, consoleEntries } =
     item;
@@ -207,18 +214,13 @@ export function formatItem(item: ReviewItem) {
     createdAt: createdAt.toISOString(),
   };
 
-  const { x, y, w, h } = item.pageRect;
-  const where =
-    w || h
-      ? `${Math.round(w)}×${Math.round(h)} at (${Math.round(x)}, ${Math.round(y)})`
-      : `pin at (${Math.round(x)}, ${Math.round(y)})`;
   const element = elementText ? ` "${oneLine(elementText, 60)}"` : "";
   const meta = [
     defang(item.author),
     `[${pagePath(item.pageUrl)}](${item.pageUrl})`,
     utc(createdAt),
     `📍 ${inlineCode(item.selector)}${element}`,
-    where,
+    where(item.pageRect),
     viewport && `${viewport.width}×${viewport.height}`,
   ]
     .filter(Boolean)
@@ -323,6 +325,54 @@ export function editItemText(
     end,
     headLines({ ...itemData(found.item), text, editedAt }, check),
   );
+}
+
+/** Where a thread points on the page. */
+export type ItemLocation = Pick<
+  StoredItem,
+  "selector" | "rect" | "pageRect"
+> & {
+  elementText?: string | null;
+};
+
+/** The meta line's "📍 `selector` "text"" and "W×H at (x, y)" parts. */
+const META_ELEMENT = /📍 `[^`]*`(?: "[^"]*")?/;
+const META_WHERE = /\d+×\d+ at \(-?\d+, -?\d+\)|pin at \(-?\d+, -?\d+\)/;
+
+/**
+ * Points the thread somewhere else on the page: its data, and the element and
+ * region in its meta line. Screenshots stay as they were.
+ */
+export function moveItem(
+  body: string,
+  itemId: string,
+  location: ItemLocation,
+): string | null {
+  const lines = body.split("\n");
+  const found = locate(lines, itemId);
+  if (!found) return null;
+
+  let end = found.start + 1;
+  while (lines[end]?.startsWith(ITEM_CONTINUATION)) end++;
+  const check = found.item.resolved ? "x" : " ";
+  const { selector, rect, pageRect, elementText } = location;
+  const head = headLines(
+    { ...itemData(found.item), selector, rect, pageRect },
+    check,
+  );
+
+  const meta = lines[end];
+  const add = [...head];
+  if (meta?.startsWith("  - ") && META_ELEMENT.test(meta)) {
+    const element = elementText ? ` "${oneLine(elementText, 60)}"` : "";
+    add.push(
+      meta
+        .replace(META_ELEMENT, `📍 ${inlineCode(selector)}${element}`)
+        .replace(META_WHERE, where(pageRect)),
+    );
+    end++;
+  }
+  return splice(lines, found.start, end, add);
 }
 
 /** Where a reply's lines are within the comment's lines. */

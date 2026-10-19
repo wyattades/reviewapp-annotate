@@ -91,6 +91,7 @@ function setup(options: { latencyMs?: number } = {}) {
         text: string;
         resolved: boolean;
         author: string;
+        selector: string;
         replies: { id: string; text: string }[];
       }[];
     }>;
@@ -313,6 +314,22 @@ describe("threads", () => {
       200,
     );
     assert.equal((await state(ada)).items[0]!.resolved, true);
+
+    // anyone can move it, by dragging its pin
+    assert.equal(
+      (
+        await call("PATCH", grace, {
+          query: `?id=${itemId}`,
+          body: {
+            selector: "main > p",
+            rect: { x: 0, y: 0, w: 1, h: 1 },
+            pageRect: { x: 1, y: 2, w: 3, h: 4 },
+          },
+        })
+      ).status,
+      200,
+    );
+    assert.equal((await state(ada)).items[0]!.selector, "main > p");
 
     // only the author edits or deletes
     const notYours = await call("PATCH", grace, {

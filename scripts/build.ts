@@ -8,27 +8,14 @@
 // (it's all tests and typechecking need).
 import { build as bundle } from "esbuild";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { widgetOptions } from "./widget-options.ts";
 
 const widgetOnly = process.argv.includes("--widget-only");
 
 if (!widgetOnly) rmSync("dist", { recursive: true, force: true });
 mkdirSync("dist", { recursive: true });
 
-const widget = await bundle({
-  entryPoints: ["src/widget/index.tsx"],
-  bundle: true,
-  minify: true,
-  format: "iife",
-  jsx: "automatic",
-  jsxImportSource: "preact",
-  target: "es2020",
-  platform: "browser",
-  // review apps can be served in any page encoding, and a script is decoded
-  // with the page's: keep the bundle ASCII
-  charset: "ascii",
-  write: false,
-  logLevel: "warning",
-});
+const widget = await bundle({ ...widgetOptions, minify: true, write: false });
 const widgetCode = widget.outputFiles[0]!.text;
 writeFileSync("dist/widget.js", widgetCode);
 writeFileSync(

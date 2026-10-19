@@ -1,6 +1,6 @@
 {
   "name": "reviewapp-annotate",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Comment on review-apps and previews (Vercel, Cloudflare, Netlify, etc.), all stored in a PR comment",
   "keywords": [
     "review-app",
@@ -72,6 +72,7 @@
     "LICENSE"
   ],
   "scripts": {
+    "dev": "node --experimental-strip-types ./scripts/dev.ts",
     "build": "node --experimental-strip-types ./scripts/build.ts",
     "build:widget": "node --experimental-strip-types ./scripts/build.ts --widget-only",
     "typecheck": "pnpm build:widget && tsc --noEmit -p .",

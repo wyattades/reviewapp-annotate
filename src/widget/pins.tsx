@@ -1,6 +1,8 @@
+import { useRef, useState } from "preact/hooks";
 import { Avatar } from "./avatar";
 import { hasRegion, locateItem, pageKey } from "./geometry";
 import { CheckCircleIcon } from "./icons";
+import { PIN_HEIGHT } from "./styles";
 import { formatTime } from "./time";
 import type { Rect, ShownItem } from "./types";
 
@@ -15,24 +17,41 @@ function participants(item: ShownItem) {
 }
 
 const MAX_AVATARS = 3;
-const PIN_HEIGHT = 28;
+/** How far the pointer has to go before a press on a pin is a drag, not a click. */
+const DRAG_THRESHOLD = 4;
+
+type Drag = {
+  id: string;
+  startX: number;
+  startY: number;
+  dx: number;
+  dy: number;
+  moved: boolean;
+};
+
+const moved = (rect: Rect, drag: Drag | null, id: string): Rect =>
+  drag?.id === id && drag.moved
+    ? { ...rect, x: rect.x + drag.dx, y: rect.y + drag.dy }
+    : rect;
 const PREVIEW_WIDTH = 260;
 const PREVIEW_HEIGHT = 150;
 
-/** Right against the pin (so the pointer can move from one to the other), on screen. */
+/** Right against the pin (so the pointer can move from one to the other), on screen. `at` is the thread's rectangle. */
 function previewPosition(at: Rect) {
   const left = Math.max(8, Math.min(at.x, innerWidth - PREVIEW_WIDTH - 8));
-  const below = at.y + PIN_HEIGHT;
+  const below = at.y;
   return below + PREVIEW_HEIGHT <= innerHeight
     ? { left, top: below }
-    : { left, bottom: Math.max(8, innerHeight - at.y) };
+    : { left, bottom: Math.max(8, innerHeight - (at.y - PIN_HEIGHT)) };
 }
 
 /**
  * The page's threads: at each one's rectangle, a pin with a comment count and
  * the avatars of who's in it. Hovering a pin outlines its rectangle and
  * previews the thread, with a Resolve button you can move onto; clicking the
- * pin or the preview opens the thread (see `thread.tsx`).
+ * pin or the preview opens the thread (see `thread.tsx`). Dragging a pin
+ * moves the thread (its rectangle goes with it). Resolved threads have no pin
+ * (they're in the list), unless open.
  * Positions are read fresh on every render; the app re-renders as layout changes.
  */
 export function Pins({
@@ -43,6 +62,7 @@ export function Pins({
   onUnhover,
   onOpen,
   onResolve,
+  onMove,
 }: {
   items: ShownItem[];
   openId: string | null;
@@ -52,15 +72,35 @@ export function Pins({
   /** opens the thread, or closes it if it's the open one */
   onOpen: (id: string) => void;
   onResolve: (item: ShownItem, resolved: boolean) => void;
+  /** the thread's rectangle, dragged to here (viewport pixels) */
+  onMove: (item: ShownItem, rect: Rect) => void;
 }) {
+  const [drag, setDrag] = useState<Drag | null>(null);
+  /** a drag ends in a click on the pin: that click isn't one */
+  const justDragged = useRef(false);
+
   const here = pageKey(location.href);
   const placed = items
-    .filter((item) => pageKey(item.pageUrl) === here)
-    .map((item) => ({ item, rect: locateItem(item) }));
-  const outlined = placed.find((p) => p.item.id === (openId ?? hoverId));
-  const previewed = placed.find(
-    (p) => p.item.id === hoverId && p.item.id !== openId,
+    .filter(
+      (item) =>
+        pageKey(item.pageUrl) === here &&
+        (!item.resolved || item.id === openId),
+    )
+    .map((item) => ({ item, rect: moved(locateItem(item), drag, item.id) }));
+  const outlined = placed.find(
+    (p) => p.item.id === (drag?.moved ? drag.id : (openId ?? hoverId)),
   );
+  const previewed = drag?.moved
+    ? undefined
+    : placed.find((p) => p.item.id === hoverId && p.item.id !== openId);
+
+  const endDrag = (item: ShownItem, rect: Rect) => {
+    if (drag?.id === item.id && drag.moved) {
+      justDragged.current = true;
+      onMove(item, rect);
+    }
+    setDrag(null);
+  };
 
   return (
     <>
@@ -79,14 +119,44 @@ export function Pins({
         <button
           key={item.id}
           type="button"
-          class={`pin${item.resolved ? " resolved" : ""}${item.pending ? " pending" : ""}${item.id === openId ? " open" : ""}`}
-          style={{ left: rect.x, top: rect.y }}
+          class={`pin${item.resolved ? " resolved" : ""}${item.pending ? " pending" : ""}${item.id === openId ? " open" : ""}${drag?.id === item.id && drag.moved ? " dragging" : ""}`}
+          style={{ left: rect.x, top: rect.y - PIN_HEIGHT }}
           aria-label={`Thread by ${item.author}, ${item.replies.length + 1} comments`}
-          // a click on our own UI is not a click outside an open thread
-          onPointerDown={(event) => event.stopPropagation()}
+          title={item.pending ? undefined : "Drag to move"}
+          onPointerDown={(event) => {
+            // a click on our own UI is not a click outside an open thread
+            event.stopPropagation();
+            if (item.pending || event.button !== 0) return;
+            event.currentTarget.setPointerCapture(event.pointerId);
+            const { clientX: x, clientY: y } = event;
+            setDrag({
+              id: item.id,
+              startX: x,
+              startY: y,
+              dx: 0,
+              dy: 0,
+              moved: false,
+            });
+          }}
+          onPointerMove={(event) => {
+            if (drag?.id !== item.id) return;
+            const dx = event.clientX - drag.startX;
+            const dy = event.clientY - drag.startY;
+            const isDrag = drag.moved || Math.hypot(dx, dy) >= DRAG_THRESHOLD;
+            setDrag({ ...drag, dx, dy, moved: isDrag });
+          }}
+          onPointerUp={() => endDrag(item, rect)}
+          // the capture is lost (e.g. the window lost focus): leave it where it was
+          onLostPointerCapture={() => setDrag(null)}
           onPointerEnter={() => onHover(item.id)}
           onPointerLeave={onUnhover}
-          onClick={() => onOpen(item.id)}
+          onClick={() => {
+            if (justDragged.current) {
+              justDragged.current = false;
+              return;
+            }
+            onOpen(item.id);
+          }}
         >
           <span class="count">
             {item.resolved ? "✓" : item.replies.length + 1}

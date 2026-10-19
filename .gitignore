@@ -3,3 +3,5 @@ dist
 *.tgz
 src/server/widget-source.generated.ts
 .DS_Store
+playground/widget.js
+playground/widget.js.map
