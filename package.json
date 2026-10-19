@@ -1,7 +1,7 @@
 {
   "name": "reviewapp-annotate",
   "version": "0.1.0",
-  "description": "Comment on review apps and previews (Heroku, Vercel, Cloudflare) like Vercel's preview comments, with every thread collected in the pull request's own comment",
+  "description": "Comment on review-apps and previews (Vercel, Cloudflare, Heroku), all stored in a PR comment",
   "keywords": [
     "review-app",
     "preview",
