@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { createReviewAnnotate } from "./handler";
+import { createHandler } from "./handler";
 import { createFakeGitHub } from "./testing/fake-github";
 import { createTokens } from "./tokens";
 
@@ -22,7 +22,7 @@ function setup(options: { latencyMs?: number } = {}) {
   });
 
   const errors: unknown[] = [];
-  const { handle } = createReviewAnnotate({
+  const handle = createHandler({
     github: fake.port,
     repos: ["o/r"],
     tokenSecret: SECRET,

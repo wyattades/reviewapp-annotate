@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { createTokens } from "./tokens";
 
 const claims = {
-  origin: "https://a.herokuapp.com",
+  origin: "https://a.netlify.com",
   name: "Ada Lovelace",
   userId: "u1",
   image: "https://img.test/a.png",

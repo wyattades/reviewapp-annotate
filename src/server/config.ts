@@ -56,8 +56,8 @@ export type ReviewAnnotateConfig = {
    */
   sharedCache?: SharedCache;
 
-  /** Whose PR comments announce review apps, and how to read them. Defaults to Heroku (a GitHub Actions comment), Vercel, and Cloudflare Workers and Pages. */
-  providers?: Provider[];
+  /** Hosts to find review apps on besides the built-in Vercel, Cloudflare and Netlify: whose PR comments announce a preview, and how to read them. */
+  additionalProviders?: Provider[];
 
   /** Where the routes are mounted. Default `/api/reviewapp-annotate`. */
   basePath?: string;

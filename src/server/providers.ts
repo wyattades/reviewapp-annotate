@@ -82,24 +82,6 @@ export function previewHosts(body: string) {
 }
 
 /**
- * Heroku review apps: Heroku itself doesn't comment, so this is the comment a
- * GitHub Actions workflow posts, `[Review App](https://dashboard.heroku.com/apps/…): https://….herokuapp.com`
- * (or your own domain), from `github-actions[bot]` unless your workflow uses a token of its own.
- */
-export const heroku = (options: ProviderOptions = {}): Provider => ({
-  id: "heroku",
-  botLogins: options.botLogins ?? ["github-actions[bot]"],
-  parseComment: (body) =>
-    unique(
-      [
-        ...body.matchAll(
-          /\[Review App\]\([^)]*\):?\s*(https?:\/\/[^\s)<>'"]+)/gi,
-        ),
-      ].map((m) => hostnameOf(m[1]!)),
-    ),
-});
-
-/**
  * Vercel's comment, which links each project's `[Preview](…)`: the branch
  * alias (or a custom branch domain), but not each deployment's own URL, so
  * only the alias finds its PR.
@@ -121,8 +103,27 @@ export const cloudflare = (options: ProviderOptions = {}): Provider => ({
   parseComment: (body) => (/cloudflare/i.test(body) ? previewHosts(body) : []),
 });
 
+/**
+ * Netlify's "Deploy Preview for site ready!" comment: the deploy preview
+ * (`deploy-preview-12--site.netlify.app`) and, when it has one, the branch
+ * deploy, or a custom domain for either.
+ */
+export const netlify = (options: ProviderOptions = {}): Provider => ({
+  id: "netlify",
+  botLogins: options.botLogins ?? ["netlify[bot]"],
+  parseComment: (body) =>
+    /netlify/i.test(body)
+      ? unique(
+          links(body)
+            .filter((link) => /^https?:\/\//.test(link.text))
+            .filter((link) => /(deploy|branch) preview\W*$/i.test(link.before))
+            .map((link) => hostnameOf(link.url)),
+        )
+      : [],
+});
+
 export const defaultProviders = (): Provider[] => [
-  heroku(),
   vercel(),
   cloudflare(),
+  netlify(),
 ];

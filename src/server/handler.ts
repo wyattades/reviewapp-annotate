@@ -71,12 +71,15 @@ type Authorized =
  * - `GET {basePath}/connect?origin=`: the sign-in popup
  * - `GET {basePath}/widget.js`: the browser widget, for review apps to load
  */
-export function createReviewAnnotate(config: ReviewAnnotateConfig) {
+export function createHandler(config: ReviewAnnotateConfig) {
   const github =
     "appId" in config.github
       ? createOctokitGitHub(config.github)
       : config.github;
-  const providers = config.providers ?? defaultProviders();
+  const providers = [
+    ...defaultProviders(),
+    ...(config.additionalProviders ?? []),
+  ];
   const tokens = createTokens({
     secret: config.tokenSecret,
     ttlSeconds: config.tokenTtlSeconds ?? 12 * 60 * 60,
@@ -296,40 +299,38 @@ export function createReviewAnnotate(config: ReviewAnnotateConfig) {
     );
   }
 
-  return {
-    /** Answers a request to any of the routes; a path that isn't one gets a 404. */
-    handle: async (request: Request): Promise<Response> => {
-      const path = new URL(request.url).pathname.replace(/\/+$/, "");
+  /** Answers a request to any of the routes; a path that isn't one gets a 404. */
+  return async function handle(request: Request): Promise<Response> {
+    const path = new URL(request.url).pathname.replace(/\/+$/, "");
 
-      if (request.method === "OPTIONS") {
-        return new Response(null, {
-          status: 204,
-          headers: corsHeaders(request),
-        });
-      }
-      if (path === `${base}/connect` && request.method === "GET") {
-        return connect(request);
-      }
-      if (path === `${base}/widget.js` && request.method === "GET") {
-        return new Response(widgetSource, {
-          headers: {
-            "content-type": "text/javascript; charset=utf-8",
-            "cache-control": "public, max-age=300, s-maxage=3600",
-            "x-content-type-options": "nosniff",
-          },
-        });
-      }
-      if (path !== base) return json(request, { error: "Not found" }, 404);
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: corsHeaders(request),
+      });
+    }
+    if (path === `${base}/connect` && request.method === "GET") {
+      return connect(request);
+    }
+    if (path === `${base}/widget.js` && request.method === "GET") {
+      return new Response(widgetSource, {
+        headers: {
+          "content-type": "text/javascript; charset=utf-8",
+          "cache-control": "public, max-age=300, s-maxage=3600",
+          "x-content-type-options": "nosniff",
+        },
+      });
+    }
+    if (path !== base) return json(request, { error: "Not found" }, 404);
 
-      const handlers = { GET: get, POST: post, PATCH: patch, DELETE: remove };
-      const handler = handlers[request.method as keyof typeof handlers];
-      if (!handler) return json(request, { error: "Method not allowed" }, 405);
+    const handlers = { GET: get, POST: post, PATCH: patch, DELETE: remove };
+    const handler = handlers[request.method as keyof typeof handlers];
+    if (!handler) return json(request, { error: "Method not allowed" }, 405);
 
-      const auth = await authorize(request);
-      if (!auth.ok) return json(request, { error: auth.error }, auth.status);
-      return handler(request, auth);
-    },
+    const auth = await authorize(request);
+    if (!auth.ok) return json(request, { error: auth.error }, auth.status);
+    return handler(request, auth);
   };
 }
 
-export type ReviewAnnotate = ReturnType<typeof createReviewAnnotate>;
+export type ReviewAnnotateHandler = ReturnType<typeof createHandler>;

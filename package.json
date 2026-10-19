@@ -1,7 +1,7 @@
 {
   "name": "reviewapp-annotate",
   "version": "0.1.0",
-  "description": "Comment on review-apps and previews (Vercel, Cloudflare, Heroku), all stored in a PR comment",
+  "description": "Comment on review-apps and previews (Vercel, Cloudflare, Netlify, etc.), all stored in a PR comment",
   "keywords": [
     "review-app",
     "preview",
@@ -9,9 +9,9 @@
     "annotate",
     "feedback",
     "pull-request",
-    "heroku",
     "vercel",
     "cloudflare",
+    "netlify",
     "nextjs"
   ],
   "license": "MIT",
@@ -51,16 +51,6 @@
       "require": {
         "types": "./dist/server/index.d.cts",
         "default": "./dist/server/index.cjs"
-      }
-    },
-    "./server/nextjs": {
-      "import": {
-        "types": "./dist/server/nextjs.d.ts",
-        "default": "./dist/server/nextjs.js"
-      },
-      "require": {
-        "types": "./dist/server/nextjs.d.cts",
-        "default": "./dist/server/nextjs.cjs"
       }
     },
     "./shared": {

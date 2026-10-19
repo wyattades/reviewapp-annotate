@@ -7,12 +7,12 @@ export type {
   IssueComment,
   PullSummary,
 } from "./github";
-export { createReviewAnnotate, type ReviewAnnotate } from "./handler";
+export { createHandler, type ReviewAnnotateHandler } from "./handler";
 export { githubRefLock, type Lock } from "./lock";
 export {
   cloudflare,
   defaultProviders,
-  heroku,
+  netlify,
   previewHosts,
   vercel,
   type Provider,

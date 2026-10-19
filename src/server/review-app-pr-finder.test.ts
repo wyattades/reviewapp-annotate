@@ -8,15 +8,15 @@ import { createFakeGitHub } from "./testing/fake-github";
 
 const VERCEL = "vercel[bot]";
 const CLOUDFLARE = "cloudflare-workers-and-pages[bot]";
-const HEROKU = "github-actions[bot]";
+const NETLIFY = "netlify[bot]";
 
 /** the comments the providers' bots leave, naming a preview */
 const vercelComment = (url: string) =>
   `[vc]: #x\nLearn more about [Vercel for GitHub](https://vercel.link/github-learn-more).\n| [web](https://vercel.com/o/web) | [Preview](${url}) |`;
 const cloudflareComment = (url: string) =>
   `## Deploying with Cloudflare Workers\n<a href='${url}'>Branch Preview URL</a>`;
-const herokuComment = (url: string) =>
-  `[Review App](https://dashboard.heroku.com/apps/x): ${url}`;
+const netlifyComment = (url: string) =>
+  `### ✅ Deploy Preview for *acme* ready!\n\n| Name | Link |\n|:-:|---|\n|🔍 Latest deploy log | https://app.netlify.com/sites/acme/deploys/1 |\n|😎 Deploy Preview | [${url}](${url}) |`;
 
 /** a shared cache in a Map */
 function memoryCache(): SharedCache & { entries: Map<string, string> } {
@@ -67,8 +67,8 @@ describe("finder", () => {
     fake.addPull("o/web", { number: 2, headRef: "two" });
     fake.addPull("o/web", { number: 3, headRef: "three" });
     fake.addComment("o/web", 1, {
-      authorLogin: HEROKU,
-      body: herokuComment("https://app-abc123.herokuapp.com"),
+      authorLogin: NETLIFY,
+      body: netlifyComment("https://deploy-preview-1--acme.netlify.app"),
     });
     fake.addComment("o/web", 2, {
       authorLogin: CLOUDFLARE,
@@ -79,7 +79,10 @@ describe("finder", () => {
       body: vercelComment("https://web-git-three-team.vercel.app"),
     });
 
-    assert.equal((await find("https://app-abc123.herokuapp.com"))?.prNumber, 1);
+    assert.equal(
+      (await find("https://deploy-preview-1--acme.netlify.app"))?.prNumber,
+      1,
+    );
     assert.equal((await find("https://abc123.site.pages.dev"))?.prNumber, 2);
     assert.equal(
       (await find("https://web-git-three-team.vercel.app"))?.prNumber,
@@ -224,13 +227,11 @@ describe("finder", () => {
       updatedAt: "2026-10-01T00:00:00Z",
     });
     fake.addComment("o/web", 99, {
-      authorLogin: HEROKU,
-      body: herokuComment("https://acme-sxp-2184-may-re-tffnkh.herokuapp.com"),
+      authorLogin: NETLIFY,
+      body: netlifyComment("https://sxp-2184-may-rerun--acme.netlify.app"),
     });
 
-    const target = await find(
-      "https://acme-sxp-2184-may-re-tffnkh.herokuapp.com",
-    );
+    const target = await find("https://sxp-2184-may-rerun--acme.netlify.app");
     assert.equal(target?.prNumber, 99);
   });
 

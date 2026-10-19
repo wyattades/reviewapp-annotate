@@ -2,35 +2,48 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { normalizeOrigin } from "./origin";
-import { cloudflare, heroku, previewHosts, vercel } from "./providers";
+import { cloudflare, netlify, previewHosts, vercel } from "./providers";
 
 // the comment bodies below are real ones, trimmed
 
-describe("heroku", () => {
-  it("reads the review app a workflow announces", () => {
-    const body =
-      "[Review App](https://dashboard.heroku.com/apps/acme-sxp-2184-may-re-tffnkh): https://acme-sxp-2184-may-re-tffnkh.herokuapp.com  _Updated 2026-10-14_";
-    assert.deepEqual(heroku().parseComment(body), [
-      "acme-sxp-2184-may-re-tffnkh.herokuapp.com",
-    ]);
-  });
+describe("netlify", () => {
+  const comment = (
+    previewUrl: string,
+  ) => `### <span aria-hidden="true">✅</span> Deploy Preview for *acme* ready!
 
-  it("reads a custom domain just as well", () => {
-    const body =
-      "[Review App](https://dashboard.heroku.com/apps/x): https://pr-12.review.example.com";
-    assert.deepEqual(heroku().parseComment(body), ["pr-12.review.example.com"]);
-  });
 
-  it("ignores another workflow's comment from the same account", () => {
+| Name | Link |
+|:-:|------------------------|
+|<span aria-hidden="true">🔨</span> Latest commit | 6f1d2c9 |
+|<span aria-hidden="true">🔍</span> Latest deploy log | https://app.netlify.com/projects/acme/deploys/68f5 |
+|<span aria-hidden="true">😎</span> Deploy Preview | [${previewUrl}](${previewUrl}) |
+|<span aria-hidden="true">📱</span> Preview on mobile | <details><summary> Toggle QR Code... </summary><br /><br />_Use your smartphone camera to open QR code link._</details> |
+---
+_To edit notification comments on pull requests, go to your [Netlify project configuration](https://app.netlify.com/projects/acme/configuration/notifications#deploy-notifications)._`;
+
+  it("reads the deploy preview, not Netlify's own links", () => {
     assert.deepEqual(
-      heroku().parseComment("Coverage: 94% https://app.herokuapp.com/coverage"),
-      [],
+      netlify().parseComment(
+        comment("https://deploy-preview-12--acme.netlify.app"),
+      ),
+      ["deploy-preview-12--acme.netlify.app"],
     );
   });
 
-  it("trusts github-actions by default, or the accounts you name", () => {
-    assert.deepEqual(heroku().botLogins, ["github-actions[bot]"]);
-    assert.deepEqual(heroku({ botLogins: ["ci-bot"] }).botLogins, ["ci-bot"]);
+  it("reads a custom domain just as well", () => {
+    assert.deepEqual(
+      netlify().parseComment(comment("https://pr-12.preview.example.com")),
+      ["pr-12.preview.example.com"],
+    );
+  });
+
+  it("ignores a comment that isn't Netlify's", () => {
+    assert.deepEqual(
+      netlify().parseComment(
+        "Deploy Preview | [https://a.example.com](https://a.example.com)",
+      ),
+      [],
+    );
   });
 });
 
