@@ -456,7 +456,10 @@ describe("threads", () => {
         ],
       );
       assert.notEqual(uploads[0]!.name, uploads[1]!.name);
-      assert.match(uploads[0]!.name, /^\d+-[0-9a-f]{8}\.jpg$/);
+      assert.match(
+        uploads[0]!.name,
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.jpg$/,
+      );
 
       // the comment links them, and the repo's branch isn't used
       assert.equal(fake.assets.length, 0);

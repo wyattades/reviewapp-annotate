@@ -132,23 +132,24 @@ const handler = createHandler({
 
 Screenshots and pasted images have to live somewhere a PR comment can show them. GitHub has no API for the uploads you make by dragging an image into a comment, so by default they're committed to a branch of the repo (`images: { branch }`, default `reviewapp-annotate-assets`). That keeps them private: seeing an image needs access to the repo, and the widget loads them through the server.
 
-To keep them out of the repo, make `images` a function that stores each image and returns a **public** URL. GitHub's image proxy fetches the link without signing in, so anyone with the link can see the image (names are unguessable).
+To keep them out of the repo, make `images` a function that stores each image and returns a **public** URL. GitHub's image proxy fetches the link without signing in, so anyone with the link can see the image. The `name` you're given is a random UUID (122 random bits), so a link can't be guessed; store the image under it as it is. It's all that protects the image.
 
 ```ts
 import { put } from "@vercel/blob";
 
 createHandler({
-  images: async ({ bytes, contentType, name, repo, prNumber }) => {
-    const blob = await put(
-      `${repo}/pr-${prNumber}/${name}`,
-      new Blob([bytes], { type: contentType }),
-      { access: "public", contentType, addRandomSuffix: true },
-    );
+  images: async ({ bytes, contentType, name }) => {
+    const blob = await put(name, new Blob([bytes], { type: contentType }), {
+      access: "public",
+      contentType,
+    });
     return blob.url;
   },
   // ...
 });
 ```
+
+`repo` and `prNumber` are also passed, in case you want to sort images by PR (to delete a closed PR's, say). They don't make a link safer, and they'd put your repo's name in the URL.
 
 ### Custom providers
 

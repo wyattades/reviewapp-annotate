@@ -21,9 +21,9 @@ export type ImageStorage =
 export type UploadedImage = {
   bytes: Uint8Array<ArrayBuffer>;
   contentType: "image/jpeg";
-  /** a unique file name, `1792442899085-1a2b3c4d.jpg` */
+  /** an unguessable file name: a random UUID, `3f2b8c1e-….jpg` */
   name: string;
-  /** the PR it's for: `owner/name` and its number, e.g. to keep them in a folder */
+  /** the PR it's for: `owner/name` and its number, if you want to sort or clean up images by PR */
   repo: string;
   prNumber: number;
 };
@@ -89,7 +89,7 @@ export type ReviewAnnotateConfig = {
    * Or pass a function to store them yourself (Vercel Blob, S3, R2...): it
    * gets the image and returns its **public** https URL, which the PR comment
    * links. GitHub's image proxy can't sign in, so anyone with the link can see
-   * the image: use an unguessable name, like the `name` given.
+   * the image: store it under the `name` given, which can't be guessed.
    */
   images?: ImageStorage;
 

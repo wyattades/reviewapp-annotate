@@ -201,7 +201,8 @@ export function createThreadStore({
             uploadImage({
               bytes: Uint8Array.from(atob(jpegBase64), (c) => c.charCodeAt(0)),
               contentType: "image/jpeg",
-              name: `${Date.now()}-${shortId()}.jpg`,
+              // unguessable: a full random UUID, since the URL is all that protects it
+              name: `${crypto.randomUUID()}.jpg`,
               repo: target.repo,
               prNumber: target.prNumber,
             }),
