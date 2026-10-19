@@ -92,6 +92,7 @@ function setup(options: { latencyMs?: number } = {}) {
         resolved: boolean;
         author: string;
         selector: string;
+        imageUrls: string[];
         replies: { id: string; text: string }[];
       }[];
     }>;
@@ -286,6 +287,31 @@ describe("threads", () => {
     assert.match(
       fake.reviewBodies("o/r", 7)[0]!,
       /assets\.test\/o\/r\/reviewapp-annotate-assets\/pr-7\//,
+    );
+
+    // its screenshot comes back through the server, for anyone signed in to the review app
+    assert.equal(seen.items[0]!.imageUrls.length, 1);
+    const image = await call("GET", grace, {
+      query: `/asset?id=${itemId}&n=0`,
+    });
+    assert.equal(image.status, 200);
+    assert.equal(image.headers.get("content-type"), "image/jpeg");
+    assert.deepEqual(
+      [...new Uint8Array(await image.arrayBuffer())],
+      [...Uint8Array.from(atob("AAAA"), (c) => c.charCodeAt(0))],
+    );
+    // ...but not to the signed out, and not an image the thread doesn't have
+    assert.equal(
+      (await call("GET", null, { query: `/asset?id=${itemId}&n=0` })).status,
+      401,
+    );
+    assert.equal(
+      (await call("GET", grace, { query: `/asset?id=${itemId}&n=1` })).status,
+      404,
+    );
+    assert.equal(
+      (await call("GET", grace, { query: `/asset?id=nope&n=0` })).status,
+      404,
     );
 
     // grace replies; ada is told nothing she can't do

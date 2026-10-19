@@ -23,6 +23,7 @@ export function createFakeGitHub({
   const refs = new Map<string, string>();
   const commits = new Map<string, string>();
   const assets: { repo: string; path: string; branch: string }[] = [];
+  const assetBytes = new Map<string, Uint8Array<ArrayBuffer>>();
   const calls: Record<string, number> = {};
   let nextId = 1;
   let nextSha = 1;
@@ -94,10 +95,22 @@ export function createFakeGitHub({
       comment.version++;
     },
 
-    async uploadAsset(repo, { branch, path }) {
+    async uploadAsset(repo, { branch, path, jpegBase64 }) {
       count("uploadAsset");
       assets.push({ repo, branch, path });
-      return `https://assets.test/${repo}/${branch}/${path}`;
+      const url = `https://assets.test/${repo}/${branch}/${path}`;
+      assetBytes.set(
+        url,
+        Uint8Array.from(atob(jpegBase64), (c) => c.charCodeAt(0)),
+      );
+      return url;
+    },
+
+    async readAsset(repo, branch, url) {
+      count("readAsset");
+      if (!url.startsWith(`https://assets.test/${repo}/${branch}/`))
+        return null;
+      return assetBytes.get(url) ?? null;
     },
 
     refs: {

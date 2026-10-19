@@ -8,7 +8,6 @@ export const PIN_HEIGHT = 28;
 
 /** Widths the popovers are placed with (`popoverStyle`). */
 export const PANEL_WIDTH = 340;
-export const TOASTS_WIDTH = 360;
 export const THREAD_WIDTH = 340;
 
 /**
@@ -39,7 +38,6 @@ export const STYLES = `
     --ra-pill: #1c1917;
     --ra-pill-hover: #2e2a26;
     --ra-pill-ink: #f6edd2;
-    --ra-toast-error: #991b1b;
     --ra-shadow: 0 8px 28px rgba(28, 25, 23, .26);
   }
   * { box-sizing: border-box; font: 13px/1.4 system-ui, sans-serif; }
@@ -62,7 +60,19 @@ export const STYLES = `
   .seg.meta { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; padding: 0 14px 0 10px;
     border-left: 1px solid rgba(255,255,255,.18); line-height: 1.15; text-align: left; }
   .seg .label { font-weight: 600; line-height: 1.15; }
-  .seg .sub { opacity: .65; font-size: 11px; line-height: 1.15; }
+  .seg .sub { display: inline-flex; align-items: center; gap: 4px; opacity: .65; font-size: 11px; line-height: 1.15; }
+
+  /* saving: a spinner in the pill's second line */
+  .spinner { width: 9px; height: 9px; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 50%;
+    animation: ra-spin .7s linear infinite; }
+  @keyframes ra-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2s; } }
+
+  /* something didn't save: retry or dismiss it here */
+  .seg.problem { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; padding: 0 14px 0 10px;
+    background: var(--ra-danger); color: #fff; line-height: 1.15; }
+  .seg.problem:hover { background: color-mix(in srgb, var(--ra-danger) 85%, black); }
+  .seg.problem .sub { opacity: .85; }
 
   /* --- selecting a region --- */
   .hint { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: ${Z + 6}; padding: 8px 14px;
@@ -103,12 +113,25 @@ export const STYLES = `
   .composer textarea.field { height: 76px; resize: vertical; }
   .composer label { display: block; margin-top: 8px; color: var(--ra-muted); }
   .composer .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+  .composer .draw-hint { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: var(--ra-muted); font-size: 12px; }
+  .composer .draw-hint .pen { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; }
+  .composer .link { padding: 0; border: 0; background: none; color: #0969da; font-size: 12px; cursor: pointer; }
+  .composer .link:hover { text-decoration: underline; }
+
+  /* the selection while composing: draw on it */
+  .region.drawing { pointer-events: auto; cursor: crosshair; touch-action: none; }
+  .region.drawing svg { position: absolute; left: -2px; top: -2px; overflow: visible; }
 
   .attachments { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
   .attachment { position: relative; width: 84px; height: 64px; border-radius: 6px; overflow: hidden;
     border: 1px solid var(--ra-line); background: var(--ra-paper-2); display: flex; align-items: center;
     justify-content: center; color: var(--ra-muted); font-size: 11px; }
   .attachment img { width: 100%; height: 100%; object-fit: cover; }
+  a.attachment { cursor: zoom-in; }
+  .thread .attachments { margin-top: 8px; }
+  /* in a thread, an image is the point: as wide as the card allows */
+  .thread .attachment { width: auto; max-width: 100%; height: auto; min-height: 48px; min-width: 84px; background: var(--ra-paper-2); }
+  .thread .attachment img { width: auto; max-width: 100%; height: auto; max-height: 200px; display: block; object-fit: contain; }
   .attachment .remove { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; padding: 0;
     display: flex; align-items: center; justify-content: center; border: 0; border-radius: 50%;
     background: color-mix(in srgb, var(--ra-ink) 78%, transparent); color: #fff; cursor: pointer; }
@@ -183,12 +206,4 @@ export const STYLES = `
   .panel .head a { color: #0969da; text-decoration: none; }
   .panel .head a:hover { text-decoration: underline; }
 
-  /* --- toasts --- */
-  .toasts { position: fixed; z-index: ${Z + 7}; width: ${TOASTS_WIDTH}px; max-width: calc(100vw - 16px); display: flex;
-    flex-direction: column; gap: 6px; align-items: flex-end; pointer-events: none; }
-  .toast { display: flex; gap: 10px; align-items: center; padding: 8px 12px; border-radius: 8px; background: var(--ra-pill);
-    border: 1px solid rgba(255,255,255,.18); color: var(--ra-pill-ink); pointer-events: auto; box-shadow: var(--ra-shadow); }
-  .toast.error { background: var(--ra-toast-error); }
-  .toast a, .toast button { color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
-  .toast.error a, .toast.error button { color: #fff; }
 `;

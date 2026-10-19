@@ -3,6 +3,7 @@ import { AutoTextarea } from "./auto-textarea";
 import { Avatar } from "./avatar";
 import { CheckCircleIcon, MoreIcon, SendIcon } from "./icons";
 import { PIN_HEIGHT, THREAD_WIDTH } from "./styles";
+import { ThreadImages } from "./thread-images";
 import { formatTime } from "./time";
 import type { Rect, ShownItem, StoredReply } from "./types";
 
@@ -158,7 +159,10 @@ export function Thread({
               <Avatar name={message.author} src={message.avatar} size={28} />
               <span class="who">{message.author}</span>
               <span class="muted">
-                {formatTime(message.createdAt)}
+                {/* a reply written on GitHub has no time */}
+                {message.createdAt
+                  ? formatTime(message.createdAt)
+                  : "on GitHub"}
                 {message.editedAt ? " (edited)" : ""}
               </span>
               <span class="spacer" />
@@ -238,7 +242,15 @@ export function Thread({
                 </div>
               </div>
             ) : (
-              <div class="text">{message.text}</div>
+              <>
+                <div class="text">{message.text}</div>
+                {isItem && !item.pending && (
+                  <ThreadImages
+                    itemId={item.id}
+                    count={item.imageUrls.length}
+                  />
+                )}
+              </>
             )}
           </div>
         );

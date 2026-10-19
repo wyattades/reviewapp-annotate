@@ -82,6 +82,7 @@ type Authorized =
  *   `{ selector, rect, pageRect }` to move the thread
  * - `DELETE {basePath}?id=` (and `&reply=`): remove your own
  * - `GET {basePath}/connect?origin=`: the sign-in popup
+ * - `GET {basePath}/asset?id=&n=`: one of a thread's images
  * - `GET {basePath}/widget.js`: the browser widget, for review apps to load
  */
 export function createHandler(config: ReviewAnnotateConfig) {
@@ -104,10 +105,11 @@ export function createHandler(config: ReviewAnnotateConfig) {
     sharedCache: config.sharedCache,
     onError: config.onError,
   });
+  const assetsBranch = config.assetsBranch ?? "reviewapp-annotate-assets";
   const store = createThreadStore({
     github,
     lock: config.lock ?? githubRefLock(github.refs),
-    assetsBranch: config.assetsBranch ?? "reviewapp-annotate-assets",
+    assetsBranch,
     sharedCache: config.sharedCache,
     onError: config.onError,
   });
@@ -196,6 +198,39 @@ export function createHandler(config: ReviewAnnotateConfig) {
       ...(user.image && { image: user.image }),
     });
     return htmlResponse(connectPage(token, origin.origin));
+  }
+
+  /**
+   * One of a thread's images, `?id=<thread>&n=<index>`: images live in the
+   * repo, which a page can't load itself when it's private. Only an image a
+   * thread on this PR links to, on the assets branch, is served.
+   */
+  async function asset(
+    request: Request,
+    auth: Extract<Authorized, { ok: true }>,
+  ) {
+    const params = new URL(request.url).searchParams;
+    const id = params.get("id");
+    const n = Number(params.get("n"));
+    try {
+      const { items } = await store.list(auth.target);
+      const url = items.find((i) => i.id === id)?.imageUrls[n];
+      const bytes =
+        url && (await github.readAsset(auth.target.repo, assetsBranch, url));
+      if (!bytes) return json(request, { error: "Not found" }, 404);
+      return new Response(bytes, {
+        headers: {
+          ...corsHeaders(request),
+          "content-type": "image/jpeg",
+          // each upload has its own path, so it never changes
+          "cache-control": "private, max-age=86400, immutable",
+          "x-content-type-options": "nosniff",
+        },
+      });
+    } catch (error) {
+      config.onError?.(error, { what: "readAsset", target: auth.target });
+      return json(request, { error: "Couldn't load the image" }, 502);
+    }
   }
 
   async function get(
@@ -337,6 +372,11 @@ export function createHandler(config: ReviewAnnotateConfig) {
           "x-content-type-options": "nosniff",
         },
       });
+    }
+    if (path === `${base}/asset` && request.method === "GET") {
+      const auth = await authorize(request);
+      if (!auth.ok) return json(request, { error: auth.error }, auth.status);
+      return asset(request, auth);
     }
     if (path !== base) return json(request, { error: "Not found" }, 404);
 

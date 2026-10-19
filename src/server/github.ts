@@ -60,6 +60,15 @@ export type GitHubPort = {
       message: string;
     },
   ): Promise<string>;
+  /**
+   * The bytes of an image `uploadAsset` stored on `branch`, by the URL it
+   * returned; null for any other URL (another repo or branch, or not ours).
+   */
+  readAsset(
+    repo: string,
+    branch: string,
+    url: string,
+  ): Promise<Uint8Array<ArrayBuffer> | null>;
   refs: GitRefs;
 };
 
@@ -341,6 +350,35 @@ export function createOctokitGitHub(
         content: jpegBase64,
       });
       return `https://github.com/${repo}/blob/${branch}/${path}?raw=true`;
+    },
+
+    async readAsset(repo, branch, url) {
+      const prefix = `https://github.com/${repo}/blob/${branch}/`;
+      if (!url.startsWith(prefix) || !url.endsWith("?raw=true")) return null;
+      const path = decodeURIComponent(
+        url.slice(prefix.length, -"?raw=true".length),
+      );
+      if (path.split("/").includes("..")) return null;
+      const octokit = await octokitFor(repo);
+      const [owner, name] = split(repo);
+      try {
+        const { data } = await octokit.rest.repos.getContent({
+          owner,
+          repo: name,
+          path,
+          ref: branch,
+        });
+        // a file, base64 (screenshots are well under the API's 1MB limit for that)
+        if (Array.isArray(data) || data.type !== "file" || !data.content) {
+          return null;
+        }
+        return Uint8Array.from(atob(data.content.replace(/\s/g, "")), (c) =>
+          c.charCodeAt(0),
+        );
+      } catch (error) {
+        if (statusOf(error) === 404) return null;
+        throw error;
+      }
     },
 
     refs,

@@ -5,43 +5,350 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>reviewapp-annotate playground</title>
     <style>
-      body { margin: 0; font: 15px/1.5 system-ui, sans-serif; color: #14261f; background: #fbfaf7; }
-      header { display: flex; align-items: center; gap: 24px; padding: 16px 40px; border-bottom: 1px solid #eeebe3; }
-      header b { font-size: 18px; }
-      header .sp { flex: 1; }
-      main { max-width: 960px; margin: 0 auto; padding: 32px 40px 120px; }
-      h1 { font-size: 40px; line-height: 1.1; letter-spacing: -1px; margin: 24px 0 8px; }
-      .plans { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 28px; }
-      .plan { flex: 1; min-width: 220px; padding: 22px; border-radius: 16px; background: #fff; border: 1px solid #ebe7dc; }
-      .plan button { width: 100%; margin-top: 16px; height: 40px; border-radius: 10px; border: 1px solid #d9d4c7; background: #fff; font-weight: 600; }
-      #plan-team { border: 2px solid #0f766e; }
-      #plan-team button { background: #0f766e; color: #fff; border-color: #0f766e; }
-      .note { margin-top: 48px; padding: 16px; border-radius: 12px; background: #fff; border: 1px dashed #d9d4c7; color: #5a625e; }
-      .tall { height: 900px; margin-top: 40px; border-radius: 16px; background: linear-gradient(#f1efe8, #fbfaf7); padding: 24px; color: #8a8f8b; }
+      body {
+        margin: 0;
+        font:
+          15px/1.5 system-ui,
+          sans-serif;
+        color: #14261f;
+        background: #fbfaf7;
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px 24px;
+        padding: 16px 40px;
+        border-bottom: 1px solid #eeebe3;
+      }
+      header b {
+        font-size: 18px;
+      }
+      header .sp {
+        flex: 1;
+      }
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 32px clamp(16px, 4vw, 40px) 120px;
+      }
+      h1 {
+        font-size: 40px;
+        line-height: 1.1;
+        letter-spacing: -1px;
+        margin: 24px 0 8px;
+      }
+      .plans {
+        display: flex;
+        gap: 18px;
+        flex-wrap: wrap;
+        margin-top: 28px;
+      }
+      .plan {
+        flex: 1;
+        min-width: 220px;
+        padding: 22px;
+        border-radius: 16px;
+        background: #fff;
+        border: 1px solid #ebe7dc;
+      }
+      .plan button {
+        width: 100%;
+        margin-top: 16px;
+        height: 40px;
+        border-radius: 10px;
+        border: 1px solid #d9d4c7;
+        background: #fff;
+        font-weight: 600;
+      }
+      #plan-team {
+        border: 2px solid #0f766e;
+      }
+      #plan-team button {
+        background: #0f766e;
+        color: #fff;
+        border-color: #0f766e;
+      }
+      .note {
+        margin-top: 48px;
+        padding: 16px;
+        border-radius: 12px;
+        background: #fff;
+        border: 1px dashed #d9d4c7;
+        color: #5a625e;
+      }
+      .tall {
+        height: 900px;
+        margin-top: 40px;
+        border-radius: 16px;
+        background: linear-gradient(#f1efe8, #fbfaf7);
+        padding: 24px;
+        color: #8a8f8b;
+      }
+
+      /* --- the PR comment preview: GitHub, on the left --- */
+      body.with-preview {
+        margin-left: min(460px, 45vw);
+      }
+      #pr-comment {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: min(460px, 45vw);
+        display: none;
+        flex-direction: column;
+        background: #fff;
+        border-right: 1px solid #d1d9e0;
+        color: #1f2328;
+        font:
+          14px/1.5 -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      body.with-preview #pr-comment {
+        display: flex;
+      }
+      #pr-comment .bar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 14px;
+        background: #f6f8fa;
+        border-bottom: 1px solid #d1d9e0;
+        color: #59636e;
+        font-size: 13px;
+      }
+      #pr-comment .bar b {
+        color: #1f2328;
+      }
+      #pr-comment .bot {
+        border: 1px solid #d1d9e0;
+        border-radius: 999px;
+        padding: 0 6px;
+        font-size: 11px;
+      }
+      #pr-comment .tabs {
+        margin-left: auto;
+        display: flex;
+        gap: 2px;
+      }
+      #pr-comment .tabs button {
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: none;
+        padding: 2px 8px;
+        font: inherit;
+        color: #59636e;
+        cursor: pointer;
+      }
+      #pr-comment[data-view="rendered"] [data-view="rendered"],
+      #pr-comment[data-view="source"] [data-view="source"] {
+        background: #fff;
+        border-color: #d1d9e0;
+        color: #1f2328;
+      }
+      #pr-comment[data-view="rendered"] .source,
+      #pr-comment[data-view="source"] .rendered {
+        display: none;
+      }
+      #pr-comment .rendered,
+      #pr-comment .source {
+        flex: 1;
+        overflow: auto;
+        margin: 0;
+        padding: 14px 18px;
+      }
+      #pr-comment .source {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        background: #f6f8fa;
+      }
+      #pr-comment .source textarea {
+        flex: 1;
+        resize: none;
+        border: 1px solid #d1d9e0;
+        border-radius: 6px;
+        padding: 8px;
+        font:
+          12px/1.5 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+      #pr-comment .edit-bar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        font-size: 12px;
+        color: #59636e;
+      }
+      #pr-comment .edit-bar code {
+        white-space: pre;
+      }
+      #pr-comment .save {
+        margin-left: auto;
+        flex: none;
+        padding: 4px 10px;
+        border-radius: 6px;
+        border: 1px solid #1f883d;
+        background: #1f883d;
+        color: #fff;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      #pr-comment .updated {
+        padding: 8px 14px;
+        border-top: 1px solid #d1d9e0;
+        color: #59636e;
+        font-size: 12px;
+      }
+      #pr-comment .empty {
+        color: #59636e;
+      }
+      /* enough of GitHub's markdown look */
+      .rendered h2 {
+        font-size: 1.4em;
+        font-weight: 600;
+        margin: 0 0 12px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #d1d9e0;
+      }
+      .rendered ul {
+        padding-left: 1.6em;
+        margin: 0 0 12px;
+      }
+      .rendered li:has(> input[type="checkbox"]) {
+        list-style: none;
+        margin: 12px 0 0 -1.4em;
+      }
+      .rendered li > input[type="checkbox"] {
+        margin: 0 6px 0 0;
+        vertical-align: -1px;
+      }
+      .rendered li ul {
+        margin: 2px 0 0;
+        padding-left: 2.2em;
+        list-style: disc;
+      }
+      .rendered li li {
+        margin-top: 2px;
+        font-size: 13px;
+      }
+      .rendered code {
+        font:
+          12px ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        background: rgba(129, 139, 152, 0.15);
+        padding: 1px 5px;
+        border-radius: 5px;
+      }
+      .rendered pre {
+        background: #f6f8fa;
+        padding: 8px;
+        border-radius: 6px;
+        overflow: auto;
+      }
+      .rendered pre code {
+        background: none;
+        padding: 0;
+      }
+      .rendered a {
+        color: #0969da;
+        text-decoration: none;
+      }
+      .rendered img {
+        max-width: 100%;
+        max-height: 220px;
+        border: 1px solid #d1d9e0;
+        border-radius: 6px;
+      }
+      .rendered blockquote {
+        margin: 0;
+        padding: 0 0.8em;
+        color: #59636e;
+        border-left: 3px solid #d1d9e0;
+      }
+      .rendered details summary {
+        cursor: pointer;
+        color: #59636e;
+      }
     </style>
+    <!-- `pnpm dev` rebuilds on save: reload then -->
+    <script>
+      new EventSource("/esbuild").addEventListener("change", () =>
+        location.reload(),
+      );
+    </script>
     <!-- the fake server, then the widget (rebuilt by `pnpm dev`) pointed at it -->
     <script src="fake-api.js"></script>
-    <script src="widget.js" data-api="https://fake-api.test/api/reviewapp-annotate"></script>
+    <script
+      src="widget.js"
+      data-api="https://fake-api.test/api/reviewapp-annotate"
+    ></script>
   </head>
-  <body>
+  <body class="with-preview">
+    <!-- the review comment the server would write, live (pr-comment.ts) -->
+    <aside id="pr-comment" data-view="rendered">
+      <div class="bar">
+        <b>reviewapp-annotate</b><span class="bot">bot</span> on acme/web#128
+        <span class="tabs">
+          <button data-view="rendered">Preview</button>
+          <button data-view="source">Markdown</button>
+        </span>
+      </div>
+      <div class="rendered"></div>
+      <div class="source">
+        <textarea spellcheck="false"></textarea>
+        <div class="edit-bar">
+          <span
+            >Edit it as an agent would: tick a box, or add
+            <code> - ↩ **Name** · reply</code> under a thread.</span
+          >
+          <button class="save">Save on GitHub</button>
+        </div>
+      </div>
+      <div class="updated"></div>
+    </aside>
     <header>
       <b>Lumen</b><span>Product</span><span>Pricing</span><span>Docs</span>
       <span class="sp"></span>
+      <button onclick="document.body.classList.toggle('with-preview')">
+        PR comment
+      </button>
       <button onclick="resetPlayground()">Reset threads</button>
     </header>
     <main>
       <h1>Simple pricing for growing teams</h1>
       <p>Start free. Upgrade when your team does.</p>
       <div class="plans">
-        <div class="plan" id="plan-starter"><h3>Starter</h3><p>$0 / month</p><button>Get started</button></div>
-        <div class="plan" id="plan-team"><h3>Team</h3><p>$24 / seat / month</p><button>Start your 14-day free trial</button></div>
-        <div class="plan" id="plan-enterprise"><h3>Enterprise</h3><p>Custom</p><button>Contact sales</button></div>
+        <div class="plan" id="plan-starter">
+          <h3>Starter</h3>
+          <p>$0 / month</p>
+          <button>Get started</button>
+        </div>
+        <div class="plan" id="plan-team">
+          <h3>Team</h3>
+          <p>$24 / seat / month</p>
+          <button>Start your 14-day free trial</button>
+        </div>
+        <div class="plan" id="plan-enterprise">
+          <h3>Enterprise</h3>
+          <p>Custom</p>
+          <button>Contact sales</button>
+        </div>
       </div>
       <div class="note">
-        The widget's playground: comments, replies, resolving, editing and moving pins all work, against a
-        fake server in this page (<code>fake-api.js</code>), saved in localStorage. No GitHub, no sign-in.
+        The widget's playground: comments, replies, resolving, editing and
+        moving pins all work, against a fake server in this page
+        (<code>fake-api.js</code>), saved in localStorage. No GitHub, no
+        sign-in.
       </div>
       <div class="tall">Scroll down: pins stay on their elements.</div>
     </main>
+    <script src="pr-comment.js"></script>
   </body>
 </html>

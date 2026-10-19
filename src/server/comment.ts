@@ -13,21 +13,58 @@
  */
 
 export const COMMENT_MARKER = "<!-- reviewapp-annotate -->";
-/** GitHub caps a comment at 65,536 characters; leave room for edits. */
-export const MAX_COMMENT_LENGTH = 60_000;
+/**
+ * GitHub caps a comment at 65,536 characters. Replies and edits can grow a
+ * comment up to this, leaving the rest for edits made on GitHub by hand.
+ */
+export const MAX_COMMENT_LENGTH = 64_000;
+/**
+ * Past this, a new thread starts a new comment: the rest is room for the
+ * replies and edits the comment's threads still get.
+ */
+export const MAX_THREADS_LENGTH = 45_000;
+
+/**
+ * How agents and scripts can resolve and reply, hidden on GitHub. (An HTML
+ * comment can't hold "-->", nor safely "--", so the commands use short flags.)
+ */
+const AGENT_NOTES = `<!--
+Notes for agents and scripts (hidden on GitHub):
+Each "- [ ]" item below is a thread someone left on this PR's review app with reviewapp-annotate. They see your changes there too.
+To resolve a thread, change its "- [ ]" to "- [x]".
+To reply, add a line at the end of the thread, indented two spaces:
+  - ↩ **Your name** · Your reply
+Edit this comment with the gh CLI:
+  gh api repos/OWNER/REPO/issues/PR_NUMBER/comments -q '.[] | select(.body | startswith("<!-- reviewapp-annotate")) | .id'
+  gh api repos/OWNER/REPO/issues/comments/COMMENT_ID -q .body > body.md
+  gh api -X PATCH repos/OWNER/REPO/issues/comments/COMMENT_ID -F body=@body.md
+Keep the hidden review-item and reply markers exactly as they are, and change nothing else.
+-->`;
 
 const HEADER = `${COMMENT_MARKER}
+${AGENT_NOTES}
 ## 💬 Review-app comments
 
-Left on the review app with reviewapp-annotate. Tick an item once it's addressed.
+Tick an item once it's addressed.
 `;
+
+/** The comment's last line, after the threads. */
+const FOOTER =
+  "<sub>Made by [reviewapp-annotate](https://github.com/wyattades/reviewapp-annotate)</sub>";
+
+/** A body without its footer (or as it was, from before there was one). */
+const withoutFooter = (body: string) => {
+  const trimmed = body.trimEnd();
+  return trimmed.endsWith(FOOTER) ? trimmed.slice(0, -FOOTER.length) : trimmed;
+};
 
 import type { Rect, StoredItem, StoredReply } from "../shared";
 import { decodeBase64Url, encodeBase64Url } from "./base64url";
 
 export type { Rect, StoredItem, StoredReply };
 
-type ItemData = Omit<StoredItem, "resolved" | "replies">;
+/** What a thread line encodes: the rest is read from the comment itself. */
+type ItemData = Omit<StoredItem, "resolved" | "replies" | "imageUrls">;
 
 export type ConsoleEntry = {
   level: string;
@@ -52,6 +89,10 @@ export type ReviewReply = Omit<StoredReply, "createdAt"> & { createdAt: Date };
 
 const ITEM_LINE = /^- \[( |x|X)\] <!-- review-item:([A-Za-z0-9_-]+) -->/;
 const REPLY_LINE = /^ {2}- ↩ <!-- reply:([A-Za-z0-9_-]+) -->/;
+/** A reply written on GitHub, by hand or by an agent: `  - ↩ **Name** · text`. */
+const PLAIN_REPLY_LINE = /^ {2}- ↩ (?!<!--)(.+)$/;
+const PLAIN_REPLY = /^\*\*(.+?)\*\*\s*(?:[·:–—-]\s*)?([\s\S]*)$/;
+const IMAGE_LINE = /^ {2}- !\[screenshot\]\((\S+)\)$/;
 /** Further lines of a thread's text, and of a reply's. */
 const ITEM_CONTINUATION = "  > ";
 const REPLY_CONTINUATION = "    > ";
@@ -130,17 +171,65 @@ function* scan(lines: string[]): Generator<Located> {
     while (end < lines.length && lines[end]!.startsWith("  ")) end++;
 
     const replies: StoredReply[] = [];
+    const imageUrls: string[] = [];
+    /** a reply written on GitHub, whose text may go on over more lines */
+    let plain: StoredReply | null = null;
     for (const line of lines.slice(start + 1, end)) {
+      if (plain && line.startsWith(REPLY_CONTINUATION)) {
+        plain.text += `\n${line.slice(REPLY_CONTINUATION.length)}`;
+        continue;
+      }
+      plain = null;
       const reply = REPLY_LINE.exec(line);
       const replyData = reply && decode<StoredReply>(reply[1]!);
       if (replyData) replies.push(replyData);
+      const written = !reply && PLAIN_REPLY_LINE.exec(line);
+      if (written) {
+        plain = plainReply(written[1]!);
+        replies.push(plain);
+      }
+      const image = IMAGE_LINE.exec(line);
+      if (image) imageUrls.push(image[1]!);
     }
+    // a reply written on GitHub is known by what it says and where it is
+    replies.forEach((reply, i) => {
+      if (!reply.id)
+        reply.id = `gh-${hash(`${reply.author}\n${reply.text}`)}-${i}`;
+    });
     yield {
       start,
       end,
-      item: { ...data, resolved: match[1] !== " ", replies },
+      item: { ...data, resolved: match[1] !== " ", replies, imageUrls },
     };
   }
+}
+
+/** A short, stable hash, for ids of replies written on GitHub. */
+function hash(text: string) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
+}
+
+/**
+ * A reply someone wrote on GitHub (`**Name** · text`, or just text). It has no
+ * time; its id is given once its text is complete (see `scan`).
+ */
+function plainReply(content: string): StoredReply {
+  const match = PLAIN_REPLY.exec(content.trim());
+  const author = match?.[1]!.trim() || "GitHub";
+  const text = (match ? match[2]! : content).trim();
+  return {
+    id: "",
+    author,
+    avatar: null,
+    authorId: `github:${author}`,
+    text,
+    createdAt: "",
+  };
 }
 
 const locate = (lines: string[], id: string) => {
@@ -157,6 +246,7 @@ export const parseItems = (body: string) =>
 const itemData = ({
   resolved: _resolved,
   replies: _replies,
+  imageUrls: _imageUrls,
   ...data
 }: StoredItem): ItemData => data;
 
@@ -239,9 +329,18 @@ export function formatItem(item: ReviewItem) {
 
 /** The comment's new body, or null when the item doesn't fit and needs a new comment. */
 export function appendItem(existingBody: string | null, item: ReviewItem) {
-  const base = existingBody ?? HEADER;
-  const next = `${base.trimEnd()}\n\n${formatItem(item)}\n`;
-  return next.length > MAX_COMMENT_LENGTH && existingBody ? null : next;
+  const base = withoutFooter(existingBody ?? HEADER);
+  // the footer stays last, after the newest thread
+  const next = `${base.trimEnd()}\n\n${formatItem(item)}\n\n${FOOTER}\n`;
+  return next.length > MAX_THREADS_LENGTH && existingBody ? null : next;
+}
+
+/** A changed body, unless it's grown too long for GitHub. */
+function withinLimit(body: string) {
+  if (body.length > MAX_COMMENT_LENGTH) {
+    throw new Error("The review comment is full");
+  }
+  return body;
 }
 
 /** Splices new lines over `lines[from, to)`, returning the body. */
@@ -266,10 +365,7 @@ export function addReply(
     found.end,
     replyLines({ ...reply, createdAt: reply.createdAt.toISOString() }),
   );
-  if (next.length > MAX_COMMENT_LENGTH) {
-    throw new Error("The review comment is full");
-  }
-  return next;
+  return withinLimit(next);
 }
 
 /** Ticks or unticks the thread's checkbox. */
@@ -319,11 +415,13 @@ export function editItemText(
   let end = found.start + 1;
   while (lines[end]?.startsWith(ITEM_CONTINUATION)) end++;
   const check = found.item.resolved ? "x" : " ";
-  return splice(
-    lines,
-    found.start,
-    end,
-    headLines({ ...itemData(found.item), text, editedAt }, check),
+  return withinLimit(
+    splice(
+      lines,
+      found.start,
+      end,
+      headLines({ ...itemData(found.item), text, editedAt }, check),
+    ),
   );
 }
 
@@ -372,7 +470,7 @@ export function moveItem(
     );
     end++;
   }
-  return splice(lines, found.start, end, add);
+  return withinLimit(splice(lines, found.start, end, add));
 }
 
 /** Where a reply's lines are within the comment's lines. */
@@ -413,10 +511,12 @@ export function editReplyText(
   const found = locate(lines, itemId);
   const at = found && locateReply(lines, found, replyId);
   if (!at || !canEdit(at.reply)) return null;
-  return splice(
-    lines,
-    at.start,
-    at.end,
-    replyLines({ ...at.reply, text, editedAt }),
+  return withinLimit(
+    splice(
+      lines,
+      at.start,
+      at.end,
+      replyLines({ ...at.reply, text, editedAt }),
+    ),
   );
 }

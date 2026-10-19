@@ -9,6 +9,7 @@ import {
   editReplyText,
   formatItem,
   MAX_COMMENT_LENGTH,
+  MAX_THREADS_LENGTH,
   moveItem,
   parseItems,
   removeItem,
@@ -122,6 +123,15 @@ describe("parseItems", () => {
     );
   });
 
+  it("reads each thread's images, and keeps them out of its data", () => {
+    const [first, second] = parseItems(body());
+    assert.deepEqual(first!.imageUrls, ["https://x/1.jpg"]);
+    assert.deepEqual(second!.imageUrls, []);
+    // editing re-encodes the thread: the images are still read from their own lines
+    const edited = editItemText(body(), "one", "New", () => true, "t")!;
+    assert.deepEqual(parseItems(edited)[0]!.imageUrls, ["https://x/1.jpg"]);
+  });
+
   it("reads every thread in order", () => {
     assert.deepEqual(ids(body()), ["one", "two", "three"]);
   });
@@ -137,6 +147,28 @@ describe("parseItems", () => {
 describe("appendItem", () => {
   it("starts a comment with the marker", () => {
     assert.ok(appendItem(null, item())!.startsWith(COMMENT_MARKER));
+  });
+
+  it("keeps the footer last, however the threads change", () => {
+    const footer =
+      /\n\n<sub>Made by \[reviewapp-annotate\]\(https:\/\/github\.com\/wyattades\/reviewapp-annotate\)<\/sub>\n$/;
+    const full = body();
+    assert.match(full, footer);
+    assert.equal(full.match(/Made by/g)!.length, 1);
+    // a reply to the last thread goes above it, and the thread still reads back
+    const replied = addReply(full, "three", reply({ id: "r9" }))!;
+    assert.match(replied, footer);
+    assert.deepEqual(
+      parseItems(replied)
+        .at(-1)!
+        .replies.map((r) => r.id),
+      ["r9"],
+    );
+    // removing the last thread leaves it
+    assert.match(removeItem(full, "three")!, footer);
+    // a comment from before there was a footer gets one
+    const old = full.replace(footer, "\n");
+    assert.match(appendItem(old, item({ id: "four" }))!, footer);
   });
 
   it("asks for a new comment when the existing one is full", () => {
@@ -273,6 +305,100 @@ describe("editItemText", () => {
       editItemText(body(), "one", "x", (i) => i.authorId === "x", "t"),
       null,
     );
+  });
+});
+
+describe("written on GitHub", () => {
+  /** inserts lines at the end of thread `id`, as someone editing the comment would */
+  const writeUnder = (text: string, id: string, ...lines: string[]) => {
+    const all = text.split("\n");
+    const at = all.findIndex(
+      (l) => l.includes(`review-item:`) && parseItems(l).at(0)?.id === id,
+    );
+    let end = at + 1;
+    while (all[end]?.startsWith("  ")) end++;
+    all.splice(end, 0, ...lines);
+    return all.join("\n");
+  };
+
+  it("tells agents how to resolve and reply, out of sight", () => {
+    const fresh = appendItem(null, item())!;
+    const notes = fresh.slice(
+      fresh.indexOf("<!--\n"),
+      fresh.indexOf("-->", fresh.indexOf("<!--\n")) + 3,
+    );
+    assert.match(notes, /change its "- \[ \]" to "- \[x\]"/);
+    assert.match(notes, /  - ↩ \*\*Your name\*\* · Your reply/);
+    assert.match(notes, /gh api -X PATCH/);
+    // nothing in it ends the HTML comment early
+    assert.equal(notes.indexOf("-->"), notes.length - 3);
+    // and it isn't mistaken for a thread
+    assert.deepEqual(ids(fresh), ["abc"]);
+  });
+
+  it("reads a reply someone wrote by hand, after the ones from the widget", () => {
+    const text = writeUnder(
+      body(),
+      "one",
+      "  - ↩ **Claude** · Fixed in abc123",
+      "    > and added a test",
+    );
+    const [first, second] = parseItems(text);
+    assert.deepEqual(
+      first!.replies.map((r) => [r.author, r.text, r.createdAt]),
+      [
+        ["Grace Hopper", "On it", "2026-10-19T13:00:00.000Z"],
+        ["Claude", "Fixed in abc123\nand added a test", ""],
+      ],
+    );
+    assert.equal(first!.replies[1]!.authorId, "github:Claude");
+    assert.deepEqual(second!.replies, []);
+  });
+
+  it("takes a reply with no name, and gives each a stable id", () => {
+    const text = writeUnder(body(), "two", "  - ↩ Done", "  - ↩ Done");
+    const replies = parseItems(text)[1]!.replies;
+    assert.deepEqual(
+      replies.map((r) => [r.author, r.text]),
+      [
+        ["GitHub", "Done"],
+        ["GitHub", "Done"],
+      ],
+    );
+    assert.notEqual(replies[0]!.id, replies[1]!.id);
+    assert.deepEqual(
+      parseItems(text)[1]!.replies.map((r) => r.id),
+      replies.map((r) => r.id),
+    );
+  });
+
+  it("keeps a hand-written reply when the widget replies after it", () => {
+    const text = writeUnder(body(), "two", "  - ↩ **Claude** · Fixed");
+    const next = addReply(text, "two", reply({ id: "r2", text: "Thanks" }))!;
+    assert.deepEqual(
+      parseItems(next)[1]!.replies.map((r) => r.text),
+      ["Fixed", "Thanks"],
+    );
+  });
+
+  it("reads a box ticked on GitHub as resolved", () => {
+    const ticked = body().replace(
+      "- [ ] <!-- review-item:",
+      "- [x] <!-- review-item:",
+    );
+    assert.equal(parseItems(ticked)[0]!.resolved, true);
+  });
+});
+
+describe("room to grow", () => {
+  it("starts a new comment for a thread well before GitHub's limit, keeping room for replies", () => {
+    assert.ok(MAX_THREADS_LENGTH + 15_000 <= MAX_COMMENT_LENGTH);
+    assert.ok(MAX_COMMENT_LENGTH < 65_536);
+    const busy =
+      appendItem(null, item({ id: "one" }))! + "x".repeat(MAX_THREADS_LENGTH);
+    assert.equal(appendItem(busy, item({ id: "two" })), null);
+    // ...while its threads can still get replies
+    assert.ok(addReply(busy, "one", reply()));
   });
 });
 

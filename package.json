@@ -1,6 +1,6 @@
 {
   "name": "reviewapp-annotate",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Comment on review-apps and previews (Vercel, Cloudflare, Netlify, etc.), all stored in a PR comment",
   "keywords": [
     "review-app",
@@ -87,6 +87,7 @@
     "@types/node": "^24",
     "esbuild": "0.25.12",
     "html2canvas-pro": "^2.5.0",
+    "marked": "^18.1.1",
     "preact": "^10.29.8",
     "prettier": "^3.9.10",
     "tsup": "^8.5.0",

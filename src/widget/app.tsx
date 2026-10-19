@@ -8,12 +8,13 @@ import { CommentIcon } from "./icons";
 import { Panel } from "./panel";
 import { Pins } from "./pins";
 import { SelectOverlay } from "./select-overlay";
-import { PANEL_WIDTH, STYLES, TOASTS_WIDTH } from "./styles";
+import { PANEL_WIDTH, STYLES } from "./styles";
 import { Thread, type ThreadActions } from "./thread";
 import type { Context, Draft, Rect, ShownItem, Target } from "./types";
 
 const POLL_MS = 10_000;
-const TOAST_MS = 6_000;
+/** How long a problem that can't be retried stays in the pill. */
+const PROBLEM_MS = 8_000;
 /** Dispatched by `index.tsx` when a single-page app changes the URL without a page load. */
 export const NAVIGATE_EVENT = "reviewapp-annotate-navigate";
 
@@ -22,13 +23,8 @@ type Mode =
   | { kind: "selecting" }
   | { kind: "composing"; target: Target };
 
-type Toast = {
-  id: number;
-  kind: "sending" | "ok" | "error";
-  text: string;
-  url?: string;
-  retry?: () => void;
-};
+/** Something that didn't save, shown in the pill. */
+type Problem = { id: number; text: string; retry?: () => void };
 
 type Payload = Record<string, unknown>;
 
@@ -45,7 +41,9 @@ export function App({ host }: { host: HTMLElement }) {
   const [panelOpen, setPanelOpen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
-  const [toasts, setToasts] = useState<Toast[]>([]);
+  /** requests in flight: the pill spins while there are any */
+  const [savingCount, setSavingCount] = useState(0);
+  const [problem, setProblem] = useState<Problem | null>(null);
   /** the reply being typed in each thread, by thread id */
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [, setLayoutTick] = useState(0);
@@ -179,23 +177,29 @@ export function App({ host }: { host: HTMLElement }) {
   // stable, so the open thread doesn't redo its setup on every render
   const closeThread = useCallback(() => openThread(null), [openThread]);
 
-  // --- toasts ---
+  // --- what the pill shows: a spinner while saving, and what went wrong ---
 
-  const showToast = (toast: Omit<Toast, "id">, id = nextId++) => {
-    setToasts((current) => [
-      ...current.filter((t) => t.id !== id),
-      { ...toast, id },
-    ]);
-    if (toast.kind === "ok") {
+  /** Runs `request` with the pill's spinner showing. */
+  const saving = async <T,>(request: () => Promise<T>) => {
+    setSavingCount((n) => n + 1);
+    try {
+      return await request();
+    } finally {
+      setSavingCount((n) => n - 1);
+    }
+  };
+
+  /** Shows a problem in the pill: one that can be retried stays until it is, others clear themselves. */
+  const report = (text: string, retry?: () => void) => {
+    const id = nextId++;
+    setProblem({ id, text, retry });
+    if (!retry) {
       setTimeout(
-        () => setToasts((current) => current.filter((t) => t.id !== id)),
-        TOAST_MS,
+        () => setProblem((current) => (current?.id === id ? null : current)),
+        PROBLEM_MS,
       );
     }
-    return id;
   };
-  const dismissToast = (id: number) =>
-    setToasts((current) => current.filter((t) => t.id !== id));
 
   /** Throws unless the server said yes. An expired sign-in signs the widget out. */
   const check = async (res: Response) => {
@@ -214,20 +218,19 @@ export function App({ host }: { host: HTMLElement }) {
   // --- commenting ---
 
   const post = async (payload: Payload, pendingId: string) => {
-    const toastId = showToast({ kind: "sending", text: "Sending comment…" });
     let created: { url?: string; itemId?: string };
     try {
-      const res = await check(await send("POST", "", payload));
-      created = (await res.json()) as { url?: string; itemId?: string };
-    } catch (error) {
-      showToast(
-        {
-          kind: "error",
-          text: (error as Error).message,
-          retry: () => void post(payload, pendingId),
-        },
-        toastId,
+      const res = await saving(async () =>
+        check(await send("POST", "", payload)),
       );
+      created = (await res.json()) as { url?: string; itemId?: string };
+      setProblem(null);
+    } catch (error) {
+      console.error("[reviewapp-annotate] comment not sent:", error);
+      report(`Not sent: ${(error as Error).message}`, () => {
+        setProblem(null);
+        void post(payload, pendingId);
+      });
       return;
     }
 
@@ -237,13 +240,12 @@ export function App({ host }: { host: HTMLElement }) {
     try {
       for (const text of queuedTexts) {
         const id = enc(created.itemId ?? "");
-        await check(await send("POST", `?reply_to=${id}`, { text }));
+        await saving(async () =>
+          check(await send("POST", `?reply_to=${id}`, { text })),
+        );
       }
     } catch (error) {
-      showToast({
-        kind: "error",
-        text: `A reply didn't send: ${(error as Error).message}`,
-      });
+      report(`A reply didn't send: ${(error as Error).message}`);
     }
 
     await load();
@@ -257,10 +259,6 @@ export function App({ host }: { host: HTMLElement }) {
         return draft ? { ...rest, [realId]: draft } : rest;
       });
     }
-    showToast(
-      { kind: "ok", text: "Comment added to the PR", url: created.url },
-      toastId,
-    );
   };
 
   /**
@@ -289,6 +287,8 @@ export function App({ host }: { host: HTMLElement }) {
         createdAt: new Date().toISOString(),
         resolved: false,
         replies: [],
+        // not uploaded yet: the thread shows them once it's on the PR
+        imageUrls: [],
       },
     ]);
     openThread(pendingId);
@@ -317,10 +317,10 @@ export function App({ host }: { host: HTMLElement }) {
   ) => {
     setItems(optimistic);
     try {
-      await check(await request());
+      await saving(async () => check(await request()));
       await load();
     } catch (error) {
-      showToast({ kind: "error", text: (error as Error).message });
+      report((error as Error).message);
       void load();
     }
   };
@@ -505,35 +505,6 @@ export function App({ host }: { host: HTMLElement }) {
         />
       )}
 
-      <div class="toasts" style={popoverStyle(pos, TOASTS_WIDTH)}>
-        {toasts.map((toast) => (
-          <div key={toast.id} class={`toast ${toast.kind}`}>
-            <span>{toast.text}</span>
-            {toast.url && (
-              <a href={toast.url} target="_blank" rel="noreferrer">
-                View
-              </a>
-            )}
-            {toast.retry && (
-              <button
-                type="button"
-                onClick={() => {
-                  dismissToast(toast.id);
-                  toast.retry?.();
-                }}
-              >
-                Retry
-              </button>
-            )}
-            {toast.kind === "error" && (
-              <button type="button" onClick={() => dismissToast(toast.id)}>
-                Dismiss
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
-
       <div
         class="bar"
         style={{ right: pos.right, bottom: pos.bottom }}
@@ -585,9 +556,33 @@ export function App({ host }: { host: HTMLElement }) {
                 : `${count} ${count === 1 ? "Comment" : "Comments"}`}
           </span>
           <span class="sub">
-            {!token ? "to comment" : context ? `PR #${context.prNumber}` : ""}
+            {savingCount > 0 ? (
+              <>
+                <span class="spinner" aria-hidden="true" />
+                Saving…
+              </>
+            ) : !token ? (
+              "to comment"
+            ) : context ? (
+              `PR #${context.prNumber}`
+            ) : (
+              ""
+            )}
           </span>
         </button>
+        {problem && (
+          <button
+            type="button"
+            class="seg problem"
+            title={problem.text}
+            onClick={() => (problem.retry ? problem.retry() : setProblem(null))}
+          >
+            <span class="label">
+              {problem.retry ? "Not sent" : "Couldn't save"}
+            </span>
+            <span class="sub">{problem.retry ? "Retry" : "Dismiss"}</span>
+          </button>
+        )}
       </div>
     </>
   );

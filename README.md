@@ -69,7 +69,7 @@ Or load it from a CDN, pinned to a version. A CDN can't know where your server i
 
 ```html
 <script
-  src="https://cdn.jsdelivr.net/npm/reviewapp-annotate@0.2.0/dist/widget.js"
+  src="https://cdn.jsdelivr.net/npm/reviewapp-annotate@0.3.0/dist/widget.js"
   data-api="https://your-app.example.com/api/reviewapp-annotate"
 ></script>
 ```
@@ -156,7 +156,7 @@ The widget's colors are CSS variables. Override them from your own CSS:
 }
 ```
 
-The variables are `--ra-ink`, `--ra-paper`, `--ra-paper-2`, `--ra-line`, `--ra-muted`, `--ra-accent`, `--ra-accent-hover`, `--ra-accent-ink`, `--ra-sticky`, `--ra-sticky-hover`, `--ra-sticky-ink`, `--ra-resolved`, `--ra-resolved-ink`, `--ra-danger`, `--ra-pill`, `--ra-pill-hover`, `--ra-pill-ink`, `--ra-toast-error` and `--ra-shadow`.
+The variables are `--ra-ink`, `--ra-paper`, `--ra-paper-2`, `--ra-line`, `--ra-muted`, `--ra-accent`, `--ra-accent-hover`, `--ra-accent-ink`, `--ra-sticky`, `--ra-sticky-hover`, `--ra-sticky-ink`, `--ra-resolved`, `--ra-resolved-ink`, `--ra-danger`, `--ra-pill`, `--ra-pill-hover`, `--ra-pill-ink` and `--ra-shadow`.
 
 ## The PR comment
 
@@ -171,6 +171,25 @@ Each thread is a checklist item, with replies nested underneath:
 
 The comment starts with `<!-- reviewapp-annotate -->`. If another tool uses the same GitHub App and edits PR comments, have it skip comments with that marker.
 
+A comment fills up to 45,000 characters with threads; past that, new threads start a new comment, so each thread keeps room for replies (a comment grows to at most 64,000 characters, under GitHub's 65,536).
+
+### For agents
+
+Agents (and people) can work through the threads on GitHub itself, with nothing but the `gh` CLI. The comment says how, in a note hidden at its top:
+
+- **Resolve a thread:** change its `- [ ]` to `- [x]`.
+- **Reply:** add a line at the end of the thread, indented two spaces: `  - ↩ **Your name** · Your reply`. It shows in the widget as a reply "on GitHub".
+
+```sh
+# the review comment's id
+gh api repos/OWNER/REPO/issues/PR_NUMBER/comments -q '.[] | select(.body | startswith("<!-- reviewapp-annotate")) | .id'
+# read it, edit body.md, write it back
+gh api repos/OWNER/REPO/issues/comments/COMMENT_ID -q .body > body.md
+gh api -X PATCH repos/OWNER/REPO/issues/comments/COMMENT_ID -F body=@body.md
+```
+
+Keep the hidden `<!-- review-item:… -->` and `<!-- reply:… -->` markers as they are. Editing the comment on GitHub needs write access to the repo.
+
 ## Development
 
 ```sh
@@ -181,7 +200,7 @@ pnpm test
 pnpm build
 ```
 
-The playground (`playground/`) runs the widget against a fake server in the page, so you can try commenting, replying, resolving and moving pins without GitHub or a deployed review app.
+The playground (`playground/`) runs the widget against a fake server in the page, so you can try commenting, replying, resolving and moving pins without GitHub or a deployed review app. Beside it is the PR comment the server would write, built with its own formatter and updated as you go; tick a box there to resolve a thread, as on GitHub.
 
 ## License
 

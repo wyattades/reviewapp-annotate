@@ -16,7 +16,7 @@ export type StoredReply = {
   /** the author's user id, which is what lets them edit or delete it */
   authorId: string;
   text: string;
-  /** ISO time */
+  /** ISO time; empty for a reply written on GitHub (by hand or by an agent) */
   createdAt: string;
   /** ISO time, once edited */
   editedAt?: string;
@@ -42,6 +42,8 @@ export type StoredItem = {
   editedAt?: string;
   /** ticked off in the PR comment */
   resolved: boolean;
+  /** its screenshots and pasted images, as linked from the PR comment: load them through the server's `/asset` route */
+  imageUrls: string[];
   replies: StoredReply[];
 };
 

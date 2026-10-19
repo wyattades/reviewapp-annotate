@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { captureRegion, imageToJpeg } from "./capture";
+import { bakeStrokes, DrawingLayer, type Stroke } from "./drawing";
 import { hasRegion } from "./geometry";
 import { CloseIcon } from "./icons";
 import type { Attachment, Draft, Rect } from "./types";
@@ -11,9 +12,8 @@ let nextId = 0;
 const newId = () => `attachment-${nextId++}`;
 
 /** Where the composer goes: under the rectangle if there's room, else above, always on screen. */
-function place(rect: Rect) {
+function place(rect: Rect, height: number) {
   const width = 320;
-  const height = 250;
   const left = Math.max(8, Math.min(rect.x, innerWidth - width - 8));
   const below = rect.y + rect.h + 8;
   const top =
@@ -42,6 +42,24 @@ export function Composer({
     region ? [{ id: newId(), kind: "screenshot", dataUrl: null }] : [],
   );
   const area = useRef<HTMLTextAreaElement>(null);
+  const card = useRef<HTMLDivElement>(null);
+  /** the composer's height, measured: it grows with attachments and the drawing line */
+  const [height, setHeight] = useState(250);
+  useEffect(() => {
+    const element = card.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() => setHeight(element.offsetHeight));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  /** the screenshot as captured, before any drawing */
+  const rawShot = useRef<string | null>(null);
+  const [strokes, setStrokes] = useState<Stroke[]>([]);
+  /** the drawing is still being put on the screenshot */
+  const [baking, setBaking] = useState(false);
+  const hasScreenshot = attachments.some(
+    (a) => a.kind === "screenshot" && a.dataUrl,
+  );
 
   useEffect(() => {
     area.current?.focus();
@@ -49,6 +67,7 @@ export function Composer({
     let cancelled = false;
     void captureRegion(rect, host).then((dataUrl) => {
       if (cancelled) return;
+      rawShot.current = dataUrl;
       // a region that couldn't be rendered just has no screenshot
       setAttachments((current) =>
         dataUrl
@@ -62,6 +81,32 @@ export function Composer({
       cancelled = true;
     };
   }, [rect, host, region]);
+
+  // the screenshot, with whatever's been drawn on it
+  useEffect(() => {
+    const shot = rawShot.current;
+    if (!shot) return;
+    let cancelled = false;
+    setBaking(true);
+    void bakeStrokes(shot, strokes, rect)
+      .catch(() => shot)
+      .then((dataUrl) => {
+        if (cancelled) return;
+        setAttachments((current) =>
+          current.map((a) => (a.kind === "screenshot" ? { ...a, dataUrl } : a)),
+        );
+        setBaking(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [strokes, rect]);
+
+  const addStroke = (stroke: Stroke) => {
+    setStrokes((current) => [...current, stroke]);
+    // back to typing: Enter sends
+    area.current?.focus();
+  };
 
   const remove = (id: string) =>
     setAttachments((current) => current.filter((a) => a.id !== id));
@@ -91,7 +136,7 @@ export function Composer({
     }
   };
 
-  const ready = attachments.every((a) => a.dataUrl);
+  const ready = attachments.every((a) => a.dataUrl) && !baking;
   const canSend = text.trim().length > 0 && ready;
   const send = () => {
     if (!canSend) return;
@@ -102,17 +147,22 @@ export function Composer({
     });
   };
 
-  const { left, top } = place(rect);
+  const { left, top } = place(rect, height);
   return (
     <>
-      {region && (
-        <div
-          class="region"
-          style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h }}
-        />
+      {region && hasScreenshot ? (
+        <DrawingLayer rect={rect} strokes={strokes} onStroke={addStroke} />
+      ) : (
+        region && (
+          <div
+            class="region"
+            style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h }}
+          />
+        )
       )}
       <div
         class="composer card"
+        ref={card}
         style={{ left, top }}
         // the page's own shortcuts shouldn't fire while typing here
         onKeyDown={(event) => event.stopPropagation()}
@@ -158,6 +208,32 @@ export function Composer({
                 </button>
               </div>
             ))}
+          </div>
+        )}
+        {region && hasScreenshot && (
+          <div class="draw-hint">
+            <span class="pen" aria-hidden="true" />
+            {strokes.length ? (
+              <>
+                <span>Marked up</span>
+                <button
+                  type="button"
+                  class="link"
+                  onClick={() => setStrokes((current) => current.slice(0, -1))}
+                >
+                  Undo
+                </button>
+                <button
+                  type="button"
+                  class="link"
+                  onClick={() => setStrokes([])}
+                >
+                  Clear
+                </button>
+              </>
+            ) : (
+              <span>Draw on the selection to mark it up</span>
+            )}
           </div>
         )}
         <label>
