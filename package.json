@@ -1,0 +1,104 @@
+{
+  "name": "reviewapp-annotate",
+  "version": "0.1.0",
+  "description": "Comment on review apps and previews (Heroku, Vercel, Cloudflare) like Vercel's preview comments, with every thread collected in the pull request's own comment",
+  "keywords": [
+    "review-app",
+    "preview",
+    "comments",
+    "annotate",
+    "feedback",
+    "pull-request",
+    "heroku",
+    "vercel",
+    "cloudflare",
+    "nextjs"
+  ],
+  "license": "MIT",
+  "author": "Wyatt Ades",
+  "homepage": "https://github.com/wyattades/reviewapp-annotate#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wyattades/reviewapp-annotate.git"
+  },
+  "bugs": {
+    "url": "https://github.com/wyattades/reviewapp-annotate/issues"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./dist/server/index.cjs",
+  "module": "./dist/server/index.js",
+  "types": "./dist/server/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/server/index.d.ts",
+        "default": "./dist/server/index.js"
+      },
+      "require": {
+        "types": "./dist/server/index.d.cts",
+        "default": "./dist/server/index.cjs"
+      }
+    },
+    "./server": {
+      "import": {
+        "types": "./dist/server/index.d.ts",
+        "default": "./dist/server/index.js"
+      },
+      "require": {
+        "types": "./dist/server/index.d.cts",
+        "default": "./dist/server/index.cjs"
+      }
+    },
+    "./server/nextjs": {
+      "import": {
+        "types": "./dist/server/nextjs.d.ts",
+        "default": "./dist/server/nextjs.js"
+      },
+      "require": {
+        "types": "./dist/server/nextjs.d.cts",
+        "default": "./dist/server/nextjs.cjs"
+      }
+    },
+    "./shared": {
+      "import": {
+        "types": "./dist/shared/index.d.ts",
+        "default": "./dist/shared/index.js"
+      },
+      "require": {
+        "types": "./dist/shared/index.d.cts",
+        "default": "./dist/shared/index.cjs"
+      }
+    },
+    "./widget.js": "./dist/widget.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node --experimental-strip-types ./scripts/build.ts",
+    "build:widget": "node --experimental-strip-types ./scripts/build.ts --widget-only",
+    "typecheck": "pnpm build:widget && tsc --noEmit -p .",
+    "test": "pnpm build:widget && bun test",
+    "prepublishOnly": "pnpm typecheck && pnpm test && pnpm build"
+  },
+  "dependencies": {
+    "octokit": "^5.0.5",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "esbuild": "0.25.12",
+    "html2canvas-pro": "^2.5.0",
+    "preact": "^10.29.8",
+    "tsup": "^8.5.0",
+    "typescript": "~6.0.3"
+  },
+  "packageManager": "pnpm@12.8.1"
+}
