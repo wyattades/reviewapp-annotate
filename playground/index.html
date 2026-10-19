@@ -14,6 +14,10 @@
         background: #fbfaf7;
       }
       header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: #fbfaf7;
         display: flex;
         flex-wrap: wrap;
         align-items: center;
@@ -26,6 +30,19 @@
       }
       header .sp {
         flex: 1;
+      }
+      .help {
+        position: fixed;
+        right: 24px;
+        top: 110px;
+        z-index: 10;
+        padding: 10px 16px;
+        border-radius: 999px;
+        border: 0;
+        background: #0f766e;
+        color: #fff;
+        font-weight: 600;
+        box-shadow: 0 4px 14px rgba(15, 118, 110, 0.35);
       }
       main {
         max-width: 960px;
@@ -321,6 +338,8 @@
       </button>
       <button onclick="resetPlayground()">Reset threads</button>
     </header>
+    <!-- a fixed element, for trying comments on things that don't scroll -->
+    <button id="help" class="help">Need help?</button>
     <main>
       <h1>Simple pricing for growing teams</h1>
       <p>Start free. Upgrade when your team does.</p>
