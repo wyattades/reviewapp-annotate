@@ -138,18 +138,20 @@ To keep them out of the repo, make `images` a function that stores each image an
 import { put } from "@vercel/blob";
 
 createHandler({
-  images: async ({ bytes, contentType, name }) => {
-    const blob = await put(name, new Blob([bytes], { type: contentType }), {
-      access: "public",
-      contentType,
-    });
+  images: async ({ bytes, contentType, name, repo, prNumber }) => {
+    // the repo and PR in the path make it easy to find (or delete) a PR's images
+    const blob = await put(
+      `${repo}/pr-${prNumber}/${name}`,
+      new Blob([bytes], { type: contentType }),
+      { access: "public", contentType },
+    );
     return blob.url;
   },
   // ...
 });
 ```
 
-`repo` and `prNumber` are also passed, in case you want to sort images by PR (to delete a closed PR's, say). They don't make a link safer, and they'd put your repo's name in the URL.
+`repo` and `prNumber` are passed so you can sort images by PR, as above. They don't make a link safer (the `name` does), and they put your repo's name in the URL: leave them out if that matters.
 
 ### Custom providers
 
