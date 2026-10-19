@@ -1,4 +1,9 @@
-export type { ErrorContext, ReviewAnnotateConfig, ReviewUser } from "./config";
+export type {
+  ErrorContext,
+  ReviewAnnotateConfig,
+  ReviewUser,
+  UploadedImage,
+} from "./config";
 export { createOctokitGitHub } from "./github";
 export type {
   GitHubAppCredentials,

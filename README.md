@@ -69,7 +69,7 @@ Or load it from a CDN, pinned to a version. A CDN can't know where your server i
 
 ```html
 <script
-  src="https://cdn.jsdelivr.net/npm/reviewapp-annotate@0.3.0/dist/widget.js"
+  src="https://cdn.jsdelivr.net/npm/reviewapp-annotate@0.4.0/dist/widget.js"
   data-api="https://your-app.example.com/api/reviewapp-annotate"
 ></script>
 ```
@@ -89,6 +89,7 @@ Or load it from a CDN, pinned to a version. A CDN can't know where your server i
 | `basePath?`             | Where the server is mounted. Default `/api/reviewapp-annotate`.                                                                                                              |
 | `tokenTtlSeconds?`      | How long a sign-in lasts. Default 12 hours.                                                                                                                                  |
 | `assetsBranch?`         | Branch that screenshots are committed to. Default `reviewapp-annotate-assets`.                                                                                               |
+| `uploadImage?`          | Stores screenshots and pasted images in your own storage instead of a branch in the repo. Return the image's public URL. See [Where images go](#where-images-go).            |
 | `onError?`              | Called with unexpected errors, so you can log or report them.                                                                                                                |
 
 Example with the optional settings:
@@ -125,6 +126,32 @@ const handler = createHandler({
   tokenTtlSeconds: 60 * 60,
   assetsBranch: "annotate-screenshots",
   onError: (error, { what }) => console.error(what, error),
+});
+```
+
+### Where images go
+
+Screenshots and pasted images have to live somewhere a PR comment can show them. GitHub has no API for the uploads you make by dragging an image into a comment, so by default they're committed to a branch of the repo (`assetsBranch`), which stays private: seeing an image needs access to the repo, and the widget loads them through the server.
+
+To keep them out of the repo, pass `uploadImage`: it gets each image's bytes and returns a **public** URL, since GitHub's image proxy fetches the link without signing in. Names are unguessable, but anyone with a link can see the image.
+
+```ts
+import { put } from "@vercel/blob";
+
+createHandler({
+  uploadImage: async ({ bytes, contentType, name, repo, prNumber }) => {
+    const blob = await put(
+      `${repo}/pr-${prNumber}/${name}`,
+      new Blob([bytes], { type: contentType }),
+      {
+        access: "public",
+        contentType,
+        addRandomSuffix: true,
+      },
+    );
+    return blob.url;
+  },
+  // ...
 });
 ```
 

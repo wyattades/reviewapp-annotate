@@ -24,18 +24,35 @@ function loadImage(itemId: string, n: number) {
   return image;
 }
 
-function ThreadImage({ itemId, n }: { itemId: string; n: number }) {
-  const [url, setUrl] = useState<string | null | undefined>(undefined);
+/** In the repo's assets branch, which needs the server (and its sign-in) to read; any other URL is public. */
+const isInRepo = (url: string) =>
+  /^https:\/\/github\.com\/[^/]+\/[^/]+\/blob\//.test(url);
+
+function ThreadImage({
+  itemId,
+  n,
+  url: source,
+}: {
+  itemId: string;
+  n: number;
+  url: string;
+}) {
+  const direct = !isInRepo(source);
+  const [loadedUrl, setLoadedUrl] = useState<string | null | undefined>(
+    undefined,
+  );
   useEffect(() => {
+    if (direct) return;
     let cancelled = false;
-    void loadImage(itemId, n).then((loadedUrl) => {
-      if (!cancelled) setUrl(loadedUrl);
+    void loadImage(itemId, n).then((url) => {
+      if (!cancelled) setLoadedUrl(url);
     });
     return () => {
       cancelled = true;
     };
-  }, [itemId, n]);
+  }, [direct, itemId, n]);
 
+  const url = direct ? source : loadedUrl;
   if (url === null) return <div class="attachment">Unavailable</div>;
   if (!url) return <div class="attachment">Loading…</div>;
   return (
@@ -54,16 +71,16 @@ function ThreadImage({ itemId, n }: { itemId: string; n: number }) {
 /** A thread's screenshots and pasted images, as thumbnails that open full size. */
 export function ThreadImages({
   itemId,
-  count,
+  urls,
 }: {
   itemId: string;
-  count: number;
+  urls: string[];
 }) {
-  if (!count) return null;
+  if (!urls.length) return null;
   return (
     <div class="attachments">
-      {Array.from({ length: count }, (_, n) => (
-        <ThreadImage key={n} itemId={itemId} n={n} />
+      {urls.map((url, n) => (
+        <ThreadImage key={n} itemId={itemId} n={n} url={url} />
       ))}
     </div>
   );

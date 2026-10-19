@@ -245,10 +245,7 @@ export function Thread({
               <>
                 <div class="text">{message.text}</div>
                 {isItem && !item.pending && (
-                  <ThreadImages
-                    itemId={item.id}
-                    count={item.imageUrls.length}
-                  />
+                  <ThreadImages itemId={item.id} urls={item.imageUrls} />
                 )}
               </>
             )}

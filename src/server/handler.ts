@@ -110,6 +110,7 @@ export function createHandler(config: ReviewAnnotateConfig) {
     github,
     lock: config.lock ?? githubRefLock(github.refs),
     assetsBranch,
+    uploadImage: config.uploadImage,
     sharedCache: config.sharedCache,
     onError: config.onError,
   });

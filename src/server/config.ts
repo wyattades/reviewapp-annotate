@@ -13,6 +13,17 @@ export type ReviewUser = {
 
 export type ErrorContext = { what: string; [key: string]: unknown };
 
+/** An image to store (see `ReviewAnnotateConfig.uploadImage`). */
+export type UploadedImage = {
+  bytes: Uint8Array<ArrayBuffer>;
+  contentType: "image/jpeg";
+  /** a unique file name, `1792442899085-1a2b3c4d.jpg` */
+  name: string;
+  /** the PR it's for: `owner/name` and its number, e.g. to keep them in a folder */
+  repo: string;
+  prNumber: number;
+};
+
 /**
  * Everything the server needs, passed in: it reads no environment variables
  * and imports nothing from your app.
@@ -65,8 +76,17 @@ export type ReviewAnnotateConfig = {
   /** How long a sign-in lasts. Default 12 hours. */
   tokenTtlSeconds?: number;
 
-  /** The branch screenshots are committed to. Default `reviewapp-annotate-assets`. */
+  /** The branch screenshots are committed to, unless `uploadImage` stores them. Default `reviewapp-annotate-assets`. */
   assetsBranch?: string;
+
+  /**
+   * Where screenshots and pasted images go instead of that branch: your own
+   * storage (Vercel Blob, S3, R2...). Return the image's public https URL:
+   * it's linked from the PR comment, and GitHub's image proxy (which can't
+   * sign in) has to be able to fetch it. Use an unguessable name, like the
+   * `name` given.
+   */
+  uploadImage?: (image: UploadedImage) => Promise<string>;
 
   /** Called with anything that goes wrong, to log or report. */
   onError?: (error: unknown, context: ErrorContext) => void;

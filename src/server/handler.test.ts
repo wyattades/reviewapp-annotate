@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import type { UploadedImage } from "./config";
 import { createHandler } from "./handler";
 import { createFakeGitHub } from "./testing/fake-github";
 import { createTokens } from "./tokens";
@@ -13,7 +14,12 @@ const SECRET = "a-token-secret-that-is-long-enough";
 const vercelComment = (url: string) =>
   `[vc]: #x\nLearn more about [Vercel for GitHub](https://vercel.link/github-learn-more).\n| [web](https://vercel.com/o/r) | [Preview](${url}) |`;
 
-function setup(options: { latencyMs?: number } = {}) {
+function setup(
+  options: {
+    latencyMs?: number;
+    uploadImage?: Parameters<typeof createHandler>[0]["uploadImage"];
+  } = {},
+) {
   const fake = createFakeGitHub(options);
   fake.addPull("o/r", { number: 7, headRef: "my-feature" });
   fake.addComment("o/r", 7, {
@@ -35,6 +41,7 @@ function setup(options: { latencyMs?: number } = {}) {
         : null;
     },
     signInUrl: (returnTo) => `/login?next=${encodeURIComponent(returnTo)}`,
+    uploadImage: options.uploadImage,
     onError: (error) => errors.push(error),
   });
 
@@ -396,6 +403,77 @@ describe("threads", () => {
       200,
     );
     assert.equal((await state(ada)).items.length, 0);
+  });
+
+  describe("with uploadImage", () => {
+    it("stores images where the host says, and links them from the comment", async () => {
+      const uploads: UploadedImage[] = [];
+      const { fake, call, signIn, comment, state } = setup({
+        uploadImage: async (image) => {
+          uploads.push(image);
+          return `https://blob.test/${image.repo}/pr-${image.prNumber}/${image.name}`;
+        },
+      });
+      const ada = await signIn("ada");
+
+      const posted = await call("POST", ada, {
+        body: comment("Cut off", {
+          screenshots: [
+            "data:image/jpeg;base64,AAAA",
+            "data:image/jpeg;base64,/+8=",
+          ],
+        }),
+      });
+      assert.equal(posted.status, 200);
+      const { itemId } = (await posted.json()) as { itemId: string };
+
+      // the host got each image's bytes, with a unique name, and the PR it's for
+      assert.deepEqual(
+        uploads.map((u) => [u.repo, u.prNumber, u.contentType, [...u.bytes]]),
+        [
+          ["o/r", 7, "image/jpeg", [0, 0, 0]],
+          ["o/r", 7, "image/jpeg", [255, 239]],
+        ],
+      );
+      assert.notEqual(uploads[0]!.name, uploads[1]!.name);
+      assert.match(uploads[0]!.name, /^\d+-[0-9a-f]{8}\.jpg$/);
+
+      // the comment links them, and the repo's branch isn't used
+      assert.equal(fake.assets.length, 0);
+      const { items } = await state(ada);
+      assert.deepEqual(
+        items[0]!.imageUrls,
+        uploads.map((u) => `https://blob.test/o/r/pr-7/${u.name}`),
+      );
+      assert.match(
+        fake.reviewBodies("o/r", 7)[0]!,
+        /!\[screenshot\]\(https:\/\/blob\.test\//,
+      );
+
+      // they're public, so the server has nothing to serve for them
+      assert.equal(
+        (await call("GET", ada, { query: `/asset?id=${itemId}&n=0` })).status,
+        404,
+      );
+    });
+
+    it("doesn't post when the upload fails, and says so", async () => {
+      const { fake, errors, call, signIn, comment, state } = setup({
+        uploadImage: async () => {
+          throw new Error("blob store is down");
+        },
+      });
+      const ada = await signIn("ada");
+      const res = await call("POST", ada, {
+        body: comment("Cut off", {
+          screenshots: ["data:image/jpeg;base64,AAAA"],
+        }),
+      });
+      assert.ok(res.status >= 500);
+      assert.equal((await state(ada)).items.length, 0);
+      assert.equal(fake.reviewBodies("o/r", 7).length, 0);
+      assert.ok(errors.length > 0);
+    });
   });
 
   it("rejects invalid input", async () => {

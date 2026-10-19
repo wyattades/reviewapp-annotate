@@ -1,6 +1,6 @@
 {
   "name": "reviewapp-annotate",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Comment on review-apps and previews (Vercel, Cloudflare, Netlify, etc.), all stored in a PR comment",
   "keywords": [
     "review-app",

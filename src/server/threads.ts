@@ -13,6 +13,7 @@ import {
   setResolved,
   type ReviewItem,
 } from "./comment";
+import type { UploadedImage } from "./config";
 import type { GitHubPort } from "./github";
 import type { Lock } from "./lock";
 import type { ReviewTarget } from "./review-app-pr-finder";
@@ -53,6 +54,7 @@ export function createThreadStore({
   github,
   lock,
   assetsBranch,
+  uploadImage,
   sharedCache,
   onError,
 }: {
@@ -60,6 +62,8 @@ export function createThreadStore({
   lock: Lock;
   /** an orphan branch that holds screenshots, since a comment can't take an upload */
   assetsBranch: string;
+  /** stores images somewhere else instead (see `ReviewAnnotateConfig.uploadImage`) */
+  uploadImage?: (image: UploadedImage) => Promise<string>;
   /** where instances share which comments are the review comments, so a cold one needn't list them all */
   sharedCache?: SharedCache;
   onError?: (
@@ -189,12 +193,28 @@ export function createThreadStore({
   async function post(target: ReviewTarget, review: NewReview) {
     const { screenshotsJpegBase64 = [], ...rest } = review;
 
+    // images in storage of the host's own don't conflict with each other: they
+    // go up before taking the lock, at the same time
+    const uploaded = uploadImage
+      ? await Promise.all(
+          screenshotsJpegBase64.map((jpegBase64) =>
+            uploadImage({
+              bytes: Uint8Array.from(atob(jpegBase64), (c) => c.charCodeAt(0)),
+              contentType: "image/jpeg",
+              name: `${Date.now()}-${shortId()}.jpg`,
+              repo: target.repo,
+              prNumber: target.prNumber,
+            }),
+          ),
+        )
+      : null;
+
     // one at a time per PR: two posts at once would otherwise both append to
     // the same body (the second write drops the first) and both commit
     // screenshots to the same branch (the second commit conflicts)
     const itemId = await lock(prKey(target), async () => {
-      const screenshotUrls: string[] = [];
-      for (const jpegBase64 of screenshotsJpegBase64) {
+      const screenshotUrls: string[] = uploaded ?? [];
+      for (const jpegBase64 of uploaded ? [] : screenshotsJpegBase64) {
         screenshotUrls.push(
           await github.uploadAsset(target.repo, {
             branch: assetsBranch,
