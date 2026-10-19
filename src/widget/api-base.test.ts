@@ -6,18 +6,27 @@ import { resolveApiBase } from "./api-base";
 describe("resolveApiBase", () => {
   it("finds the API next to a script the server serves itself", () => {
     assert.equal(
-      resolveApiBase("https://app.example.com/api/reviewapp-annotate/widget.js", undefined),
+      resolveApiBase(
+        "https://app.example.com/api/reviewapp-annotate/widget.js",
+        undefined,
+      ),
       "https://app.example.com/api/reviewapp-annotate",
     );
     assert.equal(
-      resolveApiBase("https://app.example.com/custom/mount/widget.js?v=3", undefined),
+      resolveApiBase(
+        "https://app.example.com/custom/mount/widget.js?v=3",
+        undefined,
+      ),
       "https://app.example.com/custom/mount",
     );
   });
 
   it("takes data-api as a path on the script's origin, or a full URL", () => {
     const src = "https://cdn.example.com/assets/widget.js";
-    assert.equal(resolveApiBase(src, "/annotate"), "https://cdn.example.com/annotate");
+    assert.equal(
+      resolveApiBase(src, "/annotate"),
+      "https://cdn.example.com/annotate",
+    );
     assert.equal(
       resolveApiBase(src, "https://api.example.com/v1/annotate/"),
       "https://api.example.com/v1/annotate",
@@ -32,14 +41,18 @@ describe("resolveApiBase", () => {
   });
 
   it("takes data-api from a CDN, and has no guess without it", () => {
-    const cdn = "https://cdn.jsdelivr.net/npm/reviewapp-annotate@0.1.0/dist/widget.js";
+    const cdn =
+      "https://cdn.jsdelivr.net/npm/reviewapp-annotate@0.1.0/dist/widget.js";
     assert.equal(
       resolveApiBase(cdn, "https://app.example.com/api/reviewapp-annotate"),
       "https://app.example.com/api/reviewapp-annotate",
     );
     assert.equal(resolveApiBase(cdn, undefined), null);
     assert.equal(
-      resolveApiBase("https://unpkg.com/reviewapp-annotate@0.1.0/dist/widget.js", undefined),
+      resolveApiBase(
+        "https://unpkg.com/reviewapp-annotate@0.1.0/dist/widget.js",
+        undefined,
+      ),
       null,
     );
   });

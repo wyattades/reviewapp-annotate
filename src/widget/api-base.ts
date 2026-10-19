@@ -1,5 +1,6 @@
 /** Public CDNs that serve npm packages: a script from one of these can't say where *your* server is. */
-const CDN_HOSTS = /(^|\.)(jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com|esm\.sh|skypack\.dev|cdn\.skypack\.dev)$/;
+const CDN_HOSTS =
+  /(^|\.)(jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com|esm\.sh|skypack\.dev|cdn\.skypack\.dev)$/;
 
 /**
  * Where the server's API is, for a widget script loaded from `scriptSrc`: the
@@ -18,7 +19,10 @@ export function resolveApiBase(
   if (dataApi !== undefined) {
     // told outright: a URL, or a path on the script's origin
     base = new URL(dataApi, url);
-  } else if (url.pathname.endsWith("/widget.js") && !CDN_HOSTS.test(url.hostname)) {
+  } else if (
+    url.pathname.endsWith("/widget.js") &&
+    !CDN_HOSTS.test(url.hostname)
+  ) {
     // served by the server itself: the API is right there
     base = new URL(".", url);
   } else if (CDN_HOSTS.test(url.hostname)) {

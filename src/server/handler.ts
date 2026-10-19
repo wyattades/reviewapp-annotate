@@ -96,7 +96,10 @@ export function createReviewAnnotate(config: ReviewAnnotateConfig) {
     sharedCache: config.sharedCache,
     onError: config.onError,
   });
-  const base = (config.basePath ?? "/api/reviewapp-annotate").replace(/\/+$/, "");
+  const base = (config.basePath ?? "/api/reviewapp-annotate").replace(
+    /\/+$/,
+    "",
+  );
 
   const json = (request: Request, body: unknown, status = 200) =>
     Response.json(body, { status, headers: corsHeaders(request) });

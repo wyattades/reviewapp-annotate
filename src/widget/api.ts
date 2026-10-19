@@ -3,7 +3,9 @@ import { resolveApiBase } from "./api-base";
 // The bundle runs while its <script> is the current script: that's how we find
 // the server (see `resolveApiBase`).
 const script = document.currentScript as HTMLScriptElement | null;
-const resolved = script?.src ? resolveApiBase(script.src, script.dataset.api) : null;
+const resolved = script?.src
+  ? resolveApiBase(script.src, script.dataset.api)
+  : null;
 const API_BASE = resolved ?? "";
 const SERVER_ORIGIN = API_BASE ? new URL(API_BASE).origin : "";
 

@@ -68,7 +68,11 @@ describe("githubRefLock", () => {
       "o/r",
       `lock ${Date.now() - 120_000} dead`,
     );
-    await fake.port.refs.createRef("o/r", "refs/reviewapp-annotate/lock-7", sha);
+    await fake.port.refs.createRef(
+      "o/r",
+      "refs/reviewapp-annotate/lock-7",
+      sha,
+    );
 
     const lock = githubRefLock(fake.port.refs, { ttlMs: 60_000, pollMs: 5 });
     assert.equal(await lock(KEY, async () => "ran"), "ran");

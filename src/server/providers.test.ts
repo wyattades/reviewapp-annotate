@@ -46,9 +46,7 @@ The latest updates on your projects. Learn more about [Vercel for GitHub](https:
 
   it("reads the preview link, not Vercel's own", () => {
     assert.deepEqual(
-      vercel().parseComment(
-        comment("https://web-git-feature-acme.vercel.app"),
-      ),
+      vercel().parseComment(comment("https://web-git-feature-acme.vercel.app")),
       ["web-git-feature-acme.vercel.app"],
     );
   });

@@ -225,9 +225,7 @@ describe("finder", () => {
     });
     fake.addComment("o/web", 99, {
       authorLogin: HEROKU,
-      body: herokuComment(
-        "https://acme-sxp-2184-may-re-tffnkh.herokuapp.com",
-      ),
+      body: herokuComment("https://acme-sxp-2184-may-re-tffnkh.herokuapp.com"),
     });
 
     const target = await find(
