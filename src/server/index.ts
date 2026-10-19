@@ -1,5 +1,6 @@
 export type {
   ErrorContext,
+  ImageStorage,
   ReviewAnnotateConfig,
   ReviewUser,
   UploadedImage,

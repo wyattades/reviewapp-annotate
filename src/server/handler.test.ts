@@ -17,7 +17,7 @@ const vercelComment = (url: string) =>
 function setup(
   options: {
     latencyMs?: number;
-    uploadImage?: Parameters<typeof createHandler>[0]["uploadImage"];
+    images?: Parameters<typeof createHandler>[0]["images"];
   } = {},
 ) {
   const fake = createFakeGitHub(options);
@@ -41,7 +41,7 @@ function setup(
         : null;
     },
     signInUrl: (returnTo) => `/login?next=${encodeURIComponent(returnTo)}`,
-    uploadImage: options.uploadImage,
+    images: options.images,
     onError: (error) => errors.push(error),
   });
 
@@ -405,11 +405,31 @@ describe("threads", () => {
     assert.equal((await state(ada)).items.length, 0);
   });
 
-  describe("with uploadImage", () => {
+  it("commits images to the branch `images.branch` names", async () => {
+    const { fake, call, signIn, comment, state } = setup({
+      images: { branch: "my-screenshots" },
+    });
+    const ada = await signIn("ada");
+    const posted = await call("POST", ada, {
+      body: comment("Cut off", {
+        screenshots: ["data:image/jpeg;base64,AAAA"],
+      }),
+    });
+    assert.equal(posted.status, 200);
+    assert.equal(fake.assets[0]!.branch, "my-screenshots");
+    // ...and serves them from it, to the signed in
+    const { items } = await state(ada);
+    const image = await call("GET", ada, {
+      query: `/asset?id=${items[0]!.id}&n=0`,
+    });
+    assert.equal(image.status, 200);
+  });
+
+  describe("with images as a function", () => {
     it("stores images where the host says, and links them from the comment", async () => {
       const uploads: UploadedImage[] = [];
       const { fake, call, signIn, comment, state } = setup({
-        uploadImage: async (image) => {
+        images: async (image) => {
           uploads.push(image);
           return `https://blob.test/${image.repo}/pr-${image.prNumber}/${image.name}`;
         },
@@ -459,7 +479,7 @@ describe("threads", () => {
 
     it("doesn't post when the upload fails, and says so", async () => {
       const { fake, errors, call, signIn, comment, state } = setup({
-        uploadImage: async () => {
+        images: async () => {
           throw new Error("blob store is down");
         },
       });

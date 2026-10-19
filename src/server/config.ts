@@ -13,7 +13,11 @@ export type ReviewUser = {
 
 export type ErrorContext = { what: string; [key: string]: unknown };
 
-/** An image to store (see `ReviewAnnotateConfig.uploadImage`). */
+/** Where images go: your own storage, or a branch of the repo. */
+export type ImageStorage =
+  ((image: UploadedImage) => Promise<string>) | { branch?: string };
+
+/** An image to store (see `ReviewAnnotateConfig.images`). */
 export type UploadedImage = {
   bytes: Uint8Array<ArrayBuffer>;
   contentType: "image/jpeg";
@@ -76,17 +80,18 @@ export type ReviewAnnotateConfig = {
   /** How long a sign-in lasts. Default 12 hours. */
   tokenTtlSeconds?: number;
 
-  /** The branch screenshots are committed to, unless `uploadImage` stores them. Default `reviewapp-annotate-assets`. */
-  assetsBranch?: string;
-
   /**
-   * Where screenshots and pasted images go instead of that branch: your own
-   * storage (Vercel Blob, S3, R2...). Return the image's public https URL:
-   * it's linked from the PR comment, and GitHub's image proxy (which can't
-   * sign in) has to be able to fetch it. Use an unguessable name, like the
-   * `name` given.
+   * Where screenshots and pasted images are stored. By default they're
+   * committed to a branch of the repo (`{ branch }`, default
+   * `reviewapp-annotate-assets`), which keeps them private to people with
+   * access to it.
+   *
+   * Or pass a function to store them yourself (Vercel Blob, S3, R2...): it
+   * gets the image and returns its **public** https URL, which the PR comment
+   * links. GitHub's image proxy can't sign in, so anyone with the link can see
+   * the image: use an unguessable name, like the `name` given.
    */
-  uploadImage?: (image: UploadedImage) => Promise<string>;
+  images?: ImageStorage;
 
   /** Called with anything that goes wrong, to log or report. */
   onError?: (error: unknown, context: ErrorContext) => void;

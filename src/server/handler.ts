@@ -105,12 +105,16 @@ export function createHandler(config: ReviewAnnotateConfig) {
     sharedCache: config.sharedCache,
     onError: config.onError,
   });
-  const assetsBranch = config.assetsBranch ?? "reviewapp-annotate-assets";
+  const { images } = config;
+  const uploadImage = typeof images === "function" ? images : undefined;
+  const assetsBranch =
+    (typeof images === "object" && images.branch) ||
+    "reviewapp-annotate-assets";
   const store = createThreadStore({
     github,
     lock: config.lock ?? githubRefLock(github.refs),
     assetsBranch,
-    uploadImage: config.uploadImage,
+    uploadImage,
     sharedCache: config.sharedCache,
     onError: config.onError,
   });

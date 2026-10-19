@@ -88,8 +88,7 @@ Or load it from a CDN, pinned to a version. A CDN can't know where your server i
 | `sharedCache?`          | A key-value store (Redis, KV, ...) shared by your server instances. Speeds up cold starts by remembering which PR each review app belongs to.                                |
 | `basePath?`             | Where the server is mounted. Default `/api/reviewapp-annotate`.                                                                                                              |
 | `tokenTtlSeconds?`      | How long a sign-in lasts. Default 12 hours.                                                                                                                                  |
-| `assetsBranch?`         | Branch that screenshots are committed to. Default `reviewapp-annotate-assets`.                                                                                               |
-| `uploadImage?`          | Stores screenshots and pasted images in your own storage instead of a branch in the repo. Return the image's public URL. See [Where images go](#where-images-go).            |
+| `images?`               | Where screenshots and pasted images are stored: a branch of the repo (default), or your own storage. See [Where images go](#where-images-go).                                |
 | `onError?`              | Called with unexpected errors, so you can log or report them.                                                                                                                |
 
 Example with the optional settings:
@@ -124,30 +123,26 @@ const handler = createHandler({
 
   basePath: "/api/annotate",
   tokenTtlSeconds: 60 * 60,
-  assetsBranch: "annotate-screenshots",
+  images: { branch: "annotate-screenshots" },
   onError: (error, { what }) => console.error(what, error),
 });
 ```
 
 ### Where images go
 
-Screenshots and pasted images have to live somewhere a PR comment can show them. GitHub has no API for the uploads you make by dragging an image into a comment, so by default they're committed to a branch of the repo (`assetsBranch`), which stays private: seeing an image needs access to the repo, and the widget loads them through the server.
+Screenshots and pasted images have to live somewhere a PR comment can show them. GitHub has no API for the uploads you make by dragging an image into a comment, so by default they're committed to a branch of the repo (`images: { branch }`, default `reviewapp-annotate-assets`). That keeps them private: seeing an image needs access to the repo, and the widget loads them through the server.
 
-To keep them out of the repo, pass `uploadImage`: it gets each image's bytes and returns a **public** URL, since GitHub's image proxy fetches the link without signing in. Names are unguessable, but anyone with a link can see the image.
+To keep them out of the repo, make `images` a function that stores each image and returns a **public** URL. GitHub's image proxy fetches the link without signing in, so anyone with the link can see the image (names are unguessable).
 
 ```ts
 import { put } from "@vercel/blob";
 
 createHandler({
-  uploadImage: async ({ bytes, contentType, name, repo, prNumber }) => {
+  images: async ({ bytes, contentType, name, repo, prNumber }) => {
     const blob = await put(
       `${repo}/pr-${prNumber}/${name}`,
       new Blob([bytes], { type: contentType }),
-      {
-        access: "public",
-        contentType,
-        addRandomSuffix: true,
-      },
+      { access: "public", contentType, addRandomSuffix: true },
     );
     return blob.url;
   },
