@@ -130,7 +130,7 @@ const handler = createHandler({
 
 ### Custom providers
 
-A provider tells the server which bot's PR comments to trust, and how to read the preview hostnames out of one. This one finds Heroku review apps from a comment your GitHub Actions workflow posts:
+A provider tells the server which bot's PR comments to trust, and how to read the review app URLs out of one (`parseUrls` returns URLs or bare hostnames, or `[]` for a comment that isn't announcing a preview). This one finds Heroku review apps from a comment your GitHub Actions workflow posts:
 
 ```ts
 import type { Provider } from "reviewapp-annotate/server";
@@ -138,10 +138,8 @@ import type { Provider } from "reviewapp-annotate/server";
 const heroku: Provider = {
   id: "heroku",
   botLogins: ["github-actions[bot]"],
-  parseComment: (body) =>
-    [...body.matchAll(/https:\/\/([\w.-]+\.herokuapp\.com)/g)].map(
-      (m) => m[1]!,
-    ),
+  parseUrls: (commentBody) =>
+    commentBody.match(/https:\/\/[\w.-]+\.herokuapp\.com/g) ?? [],
 };
 
 createHandler({ additionalProviders: [heroku] /* ... */ });

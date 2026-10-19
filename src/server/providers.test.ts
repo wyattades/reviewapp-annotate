@@ -2,7 +2,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { normalizeOrigin } from "./origin";
-import { cloudflare, netlify, previewHosts, vercel } from "./providers";
+import {
+  cloudflare,
+  netlify,
+  previewHostname,
+  previewHosts,
+  vercel,
+} from "./providers";
 
 // the comment bodies below are real ones, trimmed
 
@@ -23,7 +29,7 @@ _To edit notification comments on pull requests, go to your [Netlify project con
 
   it("reads the deploy preview, not Netlify's own links", () => {
     assert.deepEqual(
-      netlify().parseComment(
+      netlify().parseUrls(
         comment("https://deploy-preview-12--acme.netlify.app"),
       ),
       ["deploy-preview-12--acme.netlify.app"],
@@ -32,14 +38,14 @@ _To edit notification comments on pull requests, go to your [Netlify project con
 
   it("reads a custom domain just as well", () => {
     assert.deepEqual(
-      netlify().parseComment(comment("https://pr-12.preview.example.com")),
+      netlify().parseUrls(comment("https://pr-12.preview.example.com")),
       ["pr-12.preview.example.com"],
     );
   });
 
   it("ignores a comment that isn't Netlify's", () => {
     assert.deepEqual(
-      netlify().parseComment(
+      netlify().parseUrls(
         "Deploy Preview | [https://a.example.com](https://a.example.com)",
       ),
       [],
@@ -59,23 +65,20 @@ The latest updates on your projects. Learn more about [Vercel for GitHub](https:
 
   it("reads the preview link, not Vercel's own", () => {
     assert.deepEqual(
-      vercel().parseComment(comment("https://web-git-feature-acme.vercel.app")),
+      vercel().parseUrls(comment("https://web-git-feature-acme.vercel.app")),
       ["web-git-feature-acme.vercel.app"],
     );
   });
 
   it("reads a custom branch domain just as well", () => {
     assert.deepEqual(
-      vercel().parseComment(comment("https://staging.example.com")),
+      vercel().parseUrls(comment("https://staging.example.com")),
       ["staging.example.com"],
     );
   });
 
   it("ignores a comment that isn't Vercel's", () => {
-    assert.deepEqual(
-      vercel().parseComment("[Preview](https://example.com)"),
-      [],
-    );
+    assert.deepEqual(vercel().parseUrls("[Preview](https://example.com)"), []);
   });
 });
 
@@ -85,7 +88,7 @@ describe("cloudflare", () => {
 | Status | Name | Latest Commit | Preview URL | Updated (UTC) |
 | -|-|-|-|-|
 | ✅ Deployment successful! <br>[View logs](https://dash.cloudflare.com/?to=/a196/workers/services/view/za/production/builds/7f11) | za-docs-telemetry | b86d2a1b | <a href='https://469c7691-za-docs-telemetry.acme-dev.workers.dev'>Commit Preview URL</a><br><br><a href='https://chore-update-submodules-za-docs-telemetry.acme-dev.workers.dev'>Branch Preview URL</a> | Oct 18 2026 |`;
-    assert.deepEqual(cloudflare().parseComment(body), [
+    assert.deepEqual(cloudflare().parseUrls(body), [
       "469c7691-za-docs-telemetry.acme-dev.workers.dev",
       "chore-update-submodules-za-docs-telemetry.acme-dev.workers.dev",
     ]);
@@ -97,7 +100,7 @@ describe("cloudflare", () => {
 <!-- Preview URL -->
 ### Preview URL: https://cursor-feature-phase-1-2-4dc5-acme-landing.acme-dev.workers.dev (commit a34ce25)
 ###### This URL reflects your latest Preview deployment`;
-    assert.deepEqual(cloudflare().parseComment(body), [
+    assert.deepEqual(cloudflare().parseUrls(body), [
       "cursor-feature-phase-1-2-4dc5-acme-landing.acme-dev.workers.dev",
     ]);
   });
@@ -111,7 +114,7 @@ describe("cloudflare", () => {
 <a href='https://staging.example.org'>https://staging.example.org</a>
 </td></tr></table>
 [View logs](https://dash.cloudflare.com/?to=/31fd/pages/view/2020-website-archive/37db1633)`;
-    assert.deepEqual(cloudflare().parseComment(body), [
+    assert.deepEqual(cloudflare().parseUrls(body), [
       "37db1633.website-b1o.pages.dev",
       "staging.example.org",
     ]);
@@ -119,9 +122,25 @@ describe("cloudflare", () => {
 
   it("ignores a comment that isn't Cloudflare's", () => {
     assert.deepEqual(
-      cloudflare().parseComment("Preview URL: https://example.com"),
+      cloudflare().parseUrls("Preview URL: https://example.com"),
       [],
     );
+  });
+});
+
+describe("previewHostname", () => {
+  it("takes a URL or a bare hostname, in any case", () => {
+    assert.equal(
+      previewHostname("https://PR-12.Example.com/path?x=1"),
+      "pr-12.example.com",
+    );
+    assert.equal(previewHostname("http://a.example.com"), "a.example.com");
+    assert.equal(previewHostname(" A.Example.com. "), "a.example.com");
+  });
+
+  it("refuses what isn't one", () => {
+    assert.equal(previewHostname("not a host"), null);
+    assert.equal(previewHostname(""), null);
   });
 });
 

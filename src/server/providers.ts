@@ -8,8 +8,11 @@ export type Provider = {
   id: string;
   /** the accounts whose comments name its review apps: anyone else's are ignored */
   botLogins: string[];
-  /** the preview hostnames a comment names (lower case); none if it isn't this provider's kind of comment */
-  parseComment: (body: string) => string[];
+  /**
+   * The review apps a comment announces, as URLs (`https://…`) or bare
+   * hostnames; none if it isn't this provider's kind of comment.
+   */
+  parseUrls: (commentBody: string) => string[];
 };
 
 type ProviderOptions = {
@@ -56,6 +59,12 @@ export function hostnameOf(url: string) {
   }
 }
 
+/** A URL or bare hostname a provider returned, as the lower-case hostname review apps are matched by. */
+export function previewHostname(urlOrHostname: string) {
+  const value = urlOrHostname.trim();
+  return hostnameOf(/^https?:\/\//i.test(value) ? value : `https://${value}`);
+}
+
 const unique = (hosts: (string | null)[]) => [
   ...new Set(hosts.filter((h): h is string => !!h)),
 ];
@@ -89,7 +98,7 @@ export function previewHosts(body: string) {
 export const vercel = (options: ProviderOptions = {}): Provider => ({
   id: "vercel",
   botLogins: options.botLogins ?? ["vercel[bot]"],
-  parseComment: (body) => (/vercel/i.test(body) ? previewHosts(body) : []),
+  parseUrls: (body) => (/vercel/i.test(body) ? previewHosts(body) : []),
 });
 
 /**
@@ -100,7 +109,7 @@ export const vercel = (options: ProviderOptions = {}): Provider => ({
 export const cloudflare = (options: ProviderOptions = {}): Provider => ({
   id: "cloudflare",
   botLogins: options.botLogins ?? ["cloudflare-workers-and-pages[bot]"],
-  parseComment: (body) => (/cloudflare/i.test(body) ? previewHosts(body) : []),
+  parseUrls: (body) => (/cloudflare/i.test(body) ? previewHosts(body) : []),
 });
 
 /**
@@ -111,7 +120,7 @@ export const cloudflare = (options: ProviderOptions = {}): Provider => ({
 export const netlify = (options: ProviderOptions = {}): Provider => ({
   id: "netlify",
   botLogins: options.botLogins ?? ["netlify[bot]"],
-  parseComment: (body) =>
+  parseUrls: (body) =>
     /netlify/i.test(body)
       ? unique(
           links(body)

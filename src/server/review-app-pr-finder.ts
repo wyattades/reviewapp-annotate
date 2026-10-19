@@ -1,6 +1,6 @@
 import type { GitHubPort, PullSummary } from "./github";
 import { normalizeOrigin } from "./origin";
-import type { Provider } from "./providers";
+import { previewHostname, type Provider } from "./providers";
 import type { SharedCache } from "./shared-cache";
 
 /** The PR a review app belongs to. */
@@ -111,8 +111,9 @@ export function createReviewAppPrFinder({
       for (const comment of await github.listComments(repo, pull.number)) {
         for (const provider of providers) {
           if (!provider.botLogins.includes(comment.authorLogin)) continue;
-          for (const host of provider.parseComment(comment.body)) {
-            remember(host, repo, pull, learned);
+          for (const url of provider.parseUrls(comment.body)) {
+            const host = previewHostname(url);
+            if (host) remember(host, repo, pull, learned);
           }
         }
       }

@@ -138,6 +138,32 @@ describe("finder", () => {
     assert.equal(await find("https://web-git-feature-team.vercel.app"), null);
   });
 
+  it("takes a custom provider's URLs or bare hostnames", async () => {
+    const fake = createFakeGitHub();
+    fake.addPull("o/web", { number: 4, headRef: "four" });
+    fake.addComment("o/web", 4, {
+      authorLogin: "deploy-bot",
+      body: "Deployed https://four.review.example.com and FOUR-ALT.example.com",
+    });
+    const { find } = createReviewAppPrFinder({
+      github: fake.port,
+      repos: ["o/web"],
+      providers: [
+        {
+          id: "custom",
+          botLogins: ["deploy-bot"],
+          parseUrls: () => [
+            "https://four.review.example.com/",
+            "FOUR-ALT.example.com",
+          ],
+        },
+      ],
+    });
+
+    assert.equal((await find("https://four.review.example.com"))?.prNumber, 4);
+    assert.equal((await find("https://four-alt.example.com"))?.prNumber, 4);
+  });
+
   it("refuses origins that can't be review apps, without asking GitHub", async () => {
     const { fake, find } = setup();
     assert.equal(await find("http://example.com"), null);
