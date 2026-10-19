@@ -8,7 +8,7 @@ const stroke = {
 } as const;
 
 export const CommentIcon = () => (
-  <svg viewBox="0 0 24 24" width="14" height="14" {...stroke}>
+  <svg viewBox="0 0 24 24" width="18" height="18" {...stroke} stroke-width={2.25}>
     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
   </svg>
 );

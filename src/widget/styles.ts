@@ -19,25 +19,25 @@ export const THREAD_WIDTH = 340;
 export const STYLES = `
   :host {
     all: initial;
-    --ra-ink: #1f1235;
+    --ra-ink: #1c1917;
     --ra-paper: #ffffff;
-    --ra-paper-2: #f5f2fc;
-    --ra-line: #e4dcf5;
-    --ra-muted: #6b6490;
-    --ra-accent: #7c3aed;
-    --ra-accent-hover: #6d28d9;
-    --ra-accent-ink: #ffffff;
-    --ra-sticky: #fbbf24;
-    --ra-sticky-hover: #fcd34d;
-    --ra-sticky-ink: #3b2a00;
-    --ra-resolved: #0d9488;
+    --ra-paper-2: #faf6ea;
+    --ra-line: #ece3c8;
+    --ra-muted: #78716c;
+    --ra-accent: #d4a83a;
+    --ra-accent-hover: #c0952b;
+    --ra-accent-ink: #1c1917;
+    --ra-sticky: #efe3c2;
+    --ra-sticky-hover: #e6d6a8;
+    --ra-sticky-ink: #1c1917;
+    --ra-resolved: #5f8a3e;
     --ra-resolved-ink: #ffffff;
     --ra-danger: #dc2626;
-    --ra-pill: #2e1065;
-    --ra-pill-hover: #4c1d95;
-    --ra-pill-ink: #ffffff;
+    --ra-pill: #1c1917;
+    --ra-pill-hover: #2e2a26;
+    --ra-pill-ink: #f6edd2;
     --ra-toast-error: #991b1b;
-    --ra-shadow: 0 8px 28px rgba(46, 16, 101, .28);
+    --ra-shadow: 0 8px 28px rgba(28, 25, 23, .26);
   }
   * { box-sizing: border-box; font: 13px/1.4 system-ui, sans-serif; }
   button { font: inherit; color: inherit; }
@@ -55,21 +55,23 @@ export const STYLES = `
   .seg.icon { padding: 0 9px 0 12px; }
   .seg.icon.active { background: var(--ra-accent); color: var(--ra-accent-ink); }
   .seg.meta.active { background: var(--ra-accent); color: var(--ra-accent-ink); }
-  .seg.meta.active .sub { color: rgba(255,255,255,.85); }
+  .seg.meta.active .sub { opacity: .8; }
   .seg.meta { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; padding: 0 14px 0 10px;
     border-left: 1px solid rgba(255,255,255,.18); line-height: 1.15; text-align: left; }
   .seg .label { font-weight: 600; line-height: 1.15; }
-  .seg .sub { color: rgba(255,255,255,.62); font-size: 11px; line-height: 1.15; }
+  .seg .sub { opacity: .65; font-size: 11px; line-height: 1.15; }
 
   /* --- selecting a region --- */
   .hint { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: ${Z + 6}; padding: 8px 14px;
     border-radius: 999px; background: var(--ra-accent); color: var(--ra-accent-ink); pointer-events: none;
     box-shadow: var(--ra-shadow); }
   .catcher { position: fixed; inset: 0; z-index: ${Z + 4}; cursor: crosshair; touch-action: none; }
+  /* a white hairline and a soft halo around the border, so it stands out on any background */
   .region { position: fixed; z-index: ${Z + 5}; pointer-events: none; border: 2px solid var(--ra-accent);
-    background: color-mix(in srgb, var(--ra-accent) 12%, transparent); border-radius: 2px; }
-  .region.hover { border-color: var(--ra-sticky); background: color-mix(in srgb, var(--ra-sticky) 18%, transparent);
-    z-index: ${Z + 2}; }
+    background: color-mix(in srgb, var(--ra-accent) 10%, transparent); border-radius: 4px;
+    box-shadow: 0 0 0 1px #fff, 0 0 0 5px color-mix(in srgb, var(--ra-accent) 28%, transparent); }
+  .region.hover { border-color: var(--ra-sticky); background: color-mix(in srgb, var(--ra-sticky) 16%, transparent);
+    box-shadow: 0 0 0 1px #fff, 0 0 0 5px color-mix(in srgb, var(--ra-sticky) 35%, transparent); z-index: ${Z + 2}; }
 
   /* --- shared by the composer, thread, preview and list --- */
   .card { background: var(--ra-paper); color: var(--ra-ink); border: 1px solid var(--ra-line); border-radius: 12px;
@@ -106,7 +108,7 @@ export const STYLES = `
   .attachment img { width: 100%; height: 100%; object-fit: cover; }
   .attachment .remove { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; padding: 0;
     display: flex; align-items: center; justify-content: center; border: 0; border-radius: 50%;
-    background: rgba(31,18,53,.78); color: #fff; cursor: pointer; }
+    background: color-mix(in srgb, var(--ra-ink) 78%, transparent); color: #fff; cursor: pointer; }
 
   /* --- pins: a count (a sticky note), then up to three avatars behind it, each half hidden by the one before --- */
   .pin { position: fixed; z-index: ${Z + 3}; display: flex; align-items: center; padding: 0; border: 0;
@@ -114,10 +116,10 @@ export const STYLES = `
   .pin .count { position: relative; z-index: 10; min-width: 28px; height: 28px; padding: 0 8px; display: flex;
     align-items: center; justify-content: center; border-radius: 8px 8px 8px 2px; border: 2px solid #fff;
     background: var(--ra-sticky); color: var(--ra-sticky-ink); font-weight: 700;
-    box-shadow: 0 2px 8px rgba(46,16,101,.35); transform-origin: top left; transition: background .12s, transform .12s; }
+    box-shadow: 0 2px 8px rgba(28,25,23,.3); transform-origin: top left; transition: background .12s, transform .12s; }
   .pin:hover .count { background: var(--ra-sticky-hover); transform: scale(1.12); }
   .pin .stack { display: flex; margin-left: -12px; }
-  .pin .stack .avatar { position: relative; border: 2px solid #fff; margin-left: -12px; box-shadow: 0 1px 4px rgba(46,16,101,.35); }
+  .pin .stack .avatar { position: relative; border: 2px solid #fff; margin-left: -12px; box-shadow: 0 1px 4px rgba(28,25,23,.3); }
   .pin .stack .avatar:first-child { margin-left: 0; }
   .pin.open .count { background: var(--ra-accent); color: var(--ra-accent-ink); }
   .pin.open:hover .count { background: var(--ra-accent-hover); }
@@ -178,6 +180,6 @@ export const STYLES = `
   .toast { display: flex; gap: 10px; align-items: center; padding: 8px 12px; border-radius: 8px; background: var(--ra-pill);
     border: 1px solid rgba(255,255,255,.18); color: var(--ra-pill-ink); pointer-events: auto; box-shadow: var(--ra-shadow); }
   .toast.error { background: var(--ra-toast-error); }
-  .toast a, .toast button { color: #ddd6fe; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+  .toast a, .toast button { color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
   .toast.error a, .toast.error button { color: #fff; }
 `;
