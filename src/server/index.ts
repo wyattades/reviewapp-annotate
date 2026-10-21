@@ -11,8 +11,10 @@ export type {
   GitHubPort,
   GitRefs,
   IssueComment,
+  PullInfo,
   PullSummary,
 } from "./github";
+export type { Participant, ReviewEvent } from "./events";
 export { createHandler, type ReviewAnnotateHandler } from "./handler";
 export { githubRefLock, type Lock } from "./lock";
 export {

@@ -3,7 +3,8 @@ import type { ReviewState } from "../shared";
 import type { ErrorContext, ReviewAnnotateConfig } from "./config";
 import { connectPage, htmlResponse } from "./connect";
 import { corsHeaders } from "./cors";
-import { createOctokitGitHub } from "./github";
+import { participantsOf, type ReviewEvent } from "./events";
+import { createOctokitGitHub, type PullInfo } from "./github";
 import { githubRefLock } from "./lock";
 import { normalizeOrigin } from "./origin";
 import { defaultProviders } from "./providers";
@@ -11,7 +12,7 @@ import {
   createReviewAppPrFinder,
   type ReviewTarget,
 } from "./review-app-pr-finder";
-import { createThreadStore } from "./threads";
+import { createThreadStore, type ChangedThread } from "./threads";
 import { createTokens, type TokenClaims } from "./tokens";
 import { widgetSource } from "./widget-source.generated";
 
@@ -158,11 +159,71 @@ export function createHandler(config: ReviewAnnotateConfig) {
     return { ok: true, claims, target };
   }
 
+  const pulls = new Map<string, { at: number; pull: Promise<PullInfo> }>();
+  /** A PR's title and author change rarely: don't ask for them on every comment. */
+  const pullInfo = (target: ReviewTarget) => {
+    const key = `${target.repo}#${target.prNumber}`;
+    const known = pulls.get(key);
+    if (known && Date.now() - known.at < 5 * 60_000) return known.pull;
+    const pull = github.getPull(target.repo, target.prNumber);
+    pulls.set(key, { at: Date.now(), pull });
+    // a failure isn't remembered
+    pull.catch(() => pulls.delete(key));
+    return pull;
+  };
+
+  /**
+   * Tells `onEvent` what happened: after the response with `waitUntil`, else
+   * before it. Never fails the request; errors go to `onError`.
+   */
+  async function announce(
+    auth: Extract<Authorized, { ok: true }>,
+    changed: Pick<ChangedThread, "commentId"> & {
+      thread: ChangedThread["thread"];
+    },
+    make: (
+      parts: Pick<
+        ReviewEvent,
+        "pull" | "thread" | "actor" | "participants" | "links"
+      >,
+    ) => ReviewEvent,
+  ) {
+    const { onEvent } = config;
+    if (!onEvent || !changed.thread) return;
+    const { claims, target } = auth;
+    const { thread } = changed;
+    const delivery = (async () => {
+      try {
+        const actor = {
+          id: claims.userId,
+          name: claims.name,
+          image: claims.image,
+        };
+        await onEvent(
+          make({
+            pull: await pullInfo(target),
+            thread,
+            actor,
+            participants: participantsOf(thread, actor.id),
+            links: {
+              thread: `https://github.com/${target.repo}/pull/${target.prNumber}#issuecomment-${changed.commentId}`,
+              page: thread.pageUrl,
+            },
+          }),
+        );
+      } catch (error) {
+        config.onError?.(error, { what: "onEvent", target });
+      }
+    })();
+    if (config.waitUntil) config.waitUntil(delivery);
+    else await delivery;
+  }
+
   /** Runs a change to a thread: 200 when made, 404 when there's no such thread of theirs. */
   async function change(
     request: Request,
     context: ErrorContext,
-    run: () => Promise<boolean>,
+    run: () => Promise<unknown>,
   ) {
     try {
       return (await run())
@@ -276,14 +337,25 @@ export function createHandler(config: ReviewAnnotateConfig) {
       const parsed = textSchema.safeParse(body);
       if (!parsed.success)
         return json(request, { error: "Invalid reply" }, 400);
-      return change(request, { what: "reply", target }, () =>
-        store.reply(target, replyTo, {
+      return change(request, { what: "reply", target }, async () => {
+        const changed = await store.reply(target, replyTo, {
           author: claims.name,
           avatar: claims.image ?? null,
           authorId: claims.userId,
           text: parsed.data.text,
-        }),
-      );
+        });
+        const reply =
+          changed &&
+          changed.thread?.replies.find((r) => r.id === changed.replyId);
+        if (changed && reply) {
+          await announce(auth, changed, (parts) => ({
+            type: "reply-added",
+            reply,
+            ...parts,
+          }));
+        }
+        return changed;
+      });
     }
 
     const parsed = commentSchema.safeParse(body);
@@ -301,7 +373,12 @@ export function createHandler(config: ReviewAnnotateConfig) {
           url.replace(/^data:image\/jpeg;base64,/, ""),
         ),
       });
-      return json(request, result);
+      const { url, itemId, commentId, thread } = result;
+      await announce(auth, { commentId, thread }, (parts) => ({
+        type: "thread-created",
+        ...parts,
+      }));
+      return json(request, { url, itemId });
     } catch (error) {
       config.onError?.(error, { what: "postComment", target });
       return json(request, { error: "Couldn't post the comment" }, 502);
@@ -327,7 +404,16 @@ export function createHandler(config: ReviewAnnotateConfig) {
     return change(request, { what: "updateThread", target }, async () => {
       if ("resolved" in edit) {
         // a reply has no checkbox of its own
-        return replyId ? false : store.resolve(target, id, edit.resolved);
+        if (replyId) return false;
+        const changed = await store.resolve(target, id, edit.resolved);
+        if (changed) {
+          await announce(auth, changed, (parts) => ({
+            type: "thread-resolved",
+            resolved: edit.resolved,
+            ...parts,
+          }));
+        }
+        return changed;
       }
       if ("selector" in edit) {
         // nor a place on the page

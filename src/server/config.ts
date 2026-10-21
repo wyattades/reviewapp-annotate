@@ -1,3 +1,4 @@
+import type { ReviewEvent } from "./events";
 import type { GitHubAppCredentials, GitHubPort } from "./github";
 import type { Lock } from "./lock";
 import type { Provider } from "./providers";
@@ -92,6 +93,21 @@ export type ReviewAnnotateConfig = {
    * the image: store it under the `name` given, which can't be guessed.
    */
   images?: ImageStorage;
+
+  /**
+   * Called when something happens in a review app: a thread, a reply, a
+   * thread ticked off. For telling people (see `reviewapp-annotate/slack`), or
+   * whatever else you want. It runs after the change is saved, and if it throws
+   * the change still stands: the error goes to `onError`.
+   */
+  onEvent?: (event: ReviewEvent) => void | Promise<void>;
+
+  /**
+   * Keeps `onEvent` running after the response is sent, on hosts that stop
+   * work when it is (Vercel's `waitUntil`, Next's `after`). Without it, a
+   * comment waits for `onEvent` to finish before it's answered.
+   */
+  waitUntil?: (work: Promise<unknown>) => void;
 
   /** Called with anything that goes wrong, to log or report. */
   onError?: (error: unknown, context: ErrorContext) => void;

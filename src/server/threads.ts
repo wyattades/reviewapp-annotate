@@ -213,7 +213,7 @@ export function createThreadStore({
     // one at a time per PR: two posts at once would otherwise both append to
     // the same body (the second write drops the first) and both commit
     // screenshots to the same branch (the second commit conflicts)
-    const itemId = await lock(prKey(target), async () => {
+    const written = await lock(prKey(target), async () => {
       const screenshotUrls: string[] = uploaded ?? [];
       for (const jpegBase64 of uploaded ? [] : screenshotsJpegBase64) {
         screenshotUrls.push(
@@ -235,47 +235,62 @@ export function createThreadStore({
       const existing = await findReviewAnnotate(target);
       const latest = existing.at(-1);
       const appended = appendItem(latest?.body ?? null, item);
+      let commentId: number;
+      let body: string;
       if (latest && appended) {
         await github.updateComment(target.repo, latest.id, appended);
+        commentId = latest.id;
+        body = appended;
       } else {
         // the first comment, or the last one is full
+        body = appendItem(null, item)!;
         const created = await github.createComment(
           target.repo,
           target.prNumber,
-          appendItem(null, item)!,
+          body,
         );
         await shareIds(target, [...existing.map((c) => c.id), created.id]);
+        commentId = created.id;
       }
-      return item.id;
+      return {
+        itemId: item.id,
+        commentId,
+        thread: parseItems(body).find((i) => i.id === item.id)!,
+      };
     });
 
     // read it again, and look for a new comment, on the next poll
     prStates.delete(prKey(target));
     return {
       url: `https://github.com/${target.repo}/pull/${target.prNumber}`,
-      itemId,
+      ...written,
     };
   }
 
   /**
-   * Changes one thread in whichever of the PR's review comments holds it.
-   * `transform` gets a comment's body and returns the new one, or null when
-   * the thread isn't in it (or the caller may not change it). False if no
-   * comment took it.
+   * Changes one thread (`id`) in whichever of the PR's review comments holds
+   * it. `transform` gets a comment's body and returns the new one, or null
+   * when the thread isn't in it (or the caller may not change it). False if no
+   * comment took it; else which comment did, and the thread as it is now (null
+   * once it's deleted).
    */
   async function updateThread(
     target: ReviewTarget,
+    id: string,
     transform: (body: string) => string | null,
-  ) {
+  ): Promise<false | ChangedThread> {
     // read-change-write, one at a time per PR: a second editor would overwrite the first
     const changed = await lock(prKey(target), async () => {
       for (const comment of await findReviewAnnotate(target)) {
         const body = transform(comment.body);
         if (body === null) continue;
         await github.updateComment(target.repo, comment.id, body);
-        return true;
+        return {
+          commentId: comment.id,
+          thread: parseItems(body).find((i) => i.id === id) ?? null,
+        };
       }
-      return false;
+      return false as const;
     });
     prStates.delete(prKey(target));
     return changed;
@@ -287,19 +302,19 @@ export function createThreadStore({
 
     /** Anyone can tick a thread off; only its author can edit or delete it. */
     resolve: (target: ReviewTarget, id: string, resolved: boolean) =>
-      updateThread(target, (body) => setResolved(body, id, resolved)),
+      updateThread(target, id, (body) => setResolved(body, id, resolved)),
 
     /** Anyone can point a thread somewhere else, like ticking it off. */
     move: (target: ReviewTarget, id: string, location: ItemLocation) =>
-      updateThread(target, (body) => moveItem(body, id, location)),
+      updateThread(target, id, (body) => moveItem(body, id, location)),
 
     remove: (target: ReviewTarget, id: string, userId: string) =>
-      updateThread(target, (body) =>
+      updateThread(target, id, (body) =>
         removeItem(body, id, (item) => item.authorId === userId),
       ),
 
     edit: (target: ReviewTarget, id: string, userId: string, text: string) =>
-      updateThread(target, (body) =>
+      updateThread(target, id, (body) =>
         editItemText(body, id, text, (item) => item.authorId === userId, now()),
       ),
 
@@ -307,10 +322,12 @@ export function createThreadStore({
       target: ReviewTarget,
       id: string,
       reply: Pick<StoredReply, "author" | "avatar" | "authorId" | "text">,
-    ) =>
-      updateThread(target, (body) =>
-        addReply(body, id, { ...reply, id: shortId(), createdAt: new Date() }),
-      ),
+    ) => {
+      const replyId = shortId();
+      return updateThread(target, id, (body) =>
+        addReply(body, id, { ...reply, id: replyId, createdAt: new Date() }),
+      ).then((changed) => changed && { ...changed, replyId });
+    },
 
     removeReply: (
       target: ReviewTarget,
@@ -318,7 +335,7 @@ export function createThreadStore({
       replyId: string,
       userId: string,
     ) =>
-      updateThread(target, (body) =>
+      updateThread(target, id, (body) =>
         removeReply(body, id, replyId, (reply) => reply.authorId === userId),
       ),
 
@@ -329,7 +346,7 @@ export function createThreadStore({
       userId: string,
       text: string,
     ) =>
-      updateThread(target, (body) =>
+      updateThread(target, id, (body) =>
         editReplyText(
           body,
           id,
@@ -341,5 +358,8 @@ export function createThreadStore({
       ),
   };
 }
+
+/** A change to a thread that was saved. */
+export type ChangedThread = { commentId: number; thread: StoredItem | null };
 
 export type ThreadStore = ReturnType<typeof createThreadStore>;

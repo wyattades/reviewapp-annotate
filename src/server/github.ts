@@ -13,6 +13,16 @@ export type PullSummary = {
   updatedAt: string;
 };
 
+/** A pull request, for telling someone about it. */
+export type PullInfo = {
+  number: number;
+  title: string;
+  /** its page on GitHub */
+  url: string;
+  /** who opened it: `type` is `Bot` for a GitHub App; null when the account is gone */
+  author: { login: string; type: string } | null;
+};
+
 export type IssueComment = { id: number; body: string; authorLogin: string };
 
 export type GitRefs = {
@@ -33,6 +43,8 @@ export type GitHubPort = {
     repo: string,
     options: { limit: number; state: "open" | "all" },
   ): Promise<PullSummary[]>;
+  /** One PR: who opened it, and what it's called. */
+  getPull(repo: string, number: number): Promise<PullInfo>;
   listComments(repo: string, issue: number): Promise<IssueComment[]>;
   /** One comment. Passing the `etag` from the last read makes an unchanged one cheap: it doesn't count against the rate limit. */
   getComment(
@@ -242,6 +254,24 @@ export function createOctokitGitHub(
             .request("GET /app")
             .then((res) => `${(res.data as { slug: string }).slug}[bot]`),
       )),
+
+    async getPull(repo, number) {
+      const octokit = await octokitFor(repo);
+      const [owner, name] = split(repo);
+      const { data } = await octokit.rest.pulls.get({
+        owner,
+        repo: name,
+        pull_number: number,
+      });
+      return {
+        number,
+        title: data.title,
+        url: data.html_url,
+        author: data.user
+          ? { login: data.user.login, type: data.user.type }
+          : null,
+      };
+    },
 
     async listPulls(repo, { limit, state }) {
       const octokit = await octokitFor(repo);

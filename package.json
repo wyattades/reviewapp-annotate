@@ -1,6 +1,6 @@
 {
   "name": "reviewapp-annotate",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "Comment on review-apps and previews (Vercel, Cloudflare, Netlify, etc.), all stored in a PR comment",
   "keywords": [
     "review-app",
@@ -51,6 +51,16 @@
       "require": {
         "types": "./dist/server/index.d.cts",
         "default": "./dist/server/index.cjs"
+      }
+    },
+    "./slack": {
+      "import": {
+        "types": "./dist/server/slack.d.ts",
+        "default": "./dist/server/slack.js"
+      },
+      "require": {
+        "types": "./dist/server/slack.d.cts",
+        "default": "./dist/server/slack.cjs"
       }
     },
     "./shared": {

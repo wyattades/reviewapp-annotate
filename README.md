@@ -69,7 +69,7 @@ Or load it from a CDN, pinned to a version. A CDN can't know where your server i
 
 ```html
 <script
-  src="https://cdn.jsdelivr.net/npm/reviewapp-annotate@0.4.2/dist/widget.js"
+  src="https://cdn.jsdelivr.net/npm/reviewapp-annotate@0.5.0/dist/widget.js"
   data-api="https://your-app.example.com/api/reviewapp-annotate"
 ></script>
 ```
@@ -89,6 +89,8 @@ Or load it from a CDN, pinned to a version. A CDN can't know where your server i
 | `basePath?`             | Where the server is mounted. Default `/api/reviewapp-annotate`.                                                                                                              |
 | `tokenTtlSeconds?`      | How long a sign-in lasts. Default 12 hours.                                                                                                                                  |
 | `images?`               | Where screenshots and pasted images are stored: a branch of the repo (default), or your own storage. See [Where images go](#where-images-go).                                |
+| `onEvent?`              | Called after a thread, a reply or a thread being ticked off is saved to the PR, to tell people. See [Notifications](#notifications).                                         |
+| `waitUntil?`            | Keeps `onEvent` running after the response is sent (Vercel's `waitUntil`, Next's `after`). Without it, a comment waits for `onEvent`.                                        |
 | `onError?`              | Called with unexpected errors, so you can log or report them.                                                                                                                |
 
 Example with the optional settings:
@@ -169,6 +171,50 @@ const heroku: Provider = {
 
 createHandler({ additionalProviders: [heroku] /* ... */ });
 ```
+
+## Notifications
+
+`onEvent` is called after something is saved to the PR, with the PR (title, link, author), the thread, who did it, and who else is in the thread:
+
+| `event.type`      | When                               |
+| ----------------- | ---------------------------------- |
+| `thread-created`  | someone starts a thread            |
+| `reply-added`     | someone replies (`event.reply`)    |
+| `thread-resolved` | a thread is ticked off or reopened |
+
+If `onEvent` throws, the change is still saved and the error goes to `onError`. Changes made on GitHub itself, like a box ticked or a reply written by hand, aren't events: the server doesn't see them.
+
+`reviewapp-annotate/slack` turns events into Slack direct messages. It doesn't talk to Slack or know who anyone is: you give it a way to find someone's Slack user id, and a way to send.
+
+```ts
+import { after } from "next/server";
+import { slackNotifier } from "reviewapp-annotate/slack";
+
+createHandler({
+  onEvent: slackNotifier({
+    // a Slack user id (U…), or null to skip them. `who` is the PR's author
+    // ({ kind: "github", login }) or someone who comments in your app
+    // ({ kind: "user", id }, the id `authenticate` gave them)
+    resolveSlackUser: (who) =>
+      who.kind === "github"
+        ? slackIdForGithubLogin(who.login)
+        : slackIdForUser(who.id),
+    // `channel` is a user id, so this is a direct message from your app (`chat:write`)
+    send: (message) => slack.chat.postMessage(message),
+  }),
+  waitUntil: after,
+  // ...
+});
+```
+
+Who hears about what:
+
+- **A new thread:** the PR's author, unless the PR was opened by a bot.
+- **A reply:** everyone else in the thread, so the PR's author only if they're in it.
+- **A thread ticked off:** no one.
+- Never the person who did it, and once each. A message has the thread's text, a screenshot when it's somewhere Slack can fetch (not a private repo), and buttons to the thread on GitHub and the page.
+
+For something other than Slack, use `recipientsFor(event)` from the same import to get who should hear, and write your own message.
 
 ## Theming
 

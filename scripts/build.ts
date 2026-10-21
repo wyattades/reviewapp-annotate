@@ -29,6 +29,7 @@ if (!widgetOnly) {
   await build({
     entry: {
       "server/index": "src/server/index.ts",
+      "server/slack": "src/server/slack.ts",
       "shared/index": "src/shared/index.ts",
     },
     outDir: "dist",

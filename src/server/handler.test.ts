@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { UploadedImage } from "./config";
+import type { ReviewEvent } from "./events";
 import { createHandler } from "./handler";
 import { createFakeGitHub } from "./testing/fake-github";
 import { createTokens } from "./tokens";
@@ -18,10 +19,19 @@ function setup(
   options: {
     latencyMs?: number;
     images?: Parameters<typeof createHandler>[0]["images"];
+    onEvent?: Parameters<typeof createHandler>[0]["onEvent"];
+    waitUntil?: Parameters<typeof createHandler>[0]["waitUntil"];
+    pr?: Parameters<ReturnType<typeof createFakeGitHub>["addPull"]>[1];
   } = {},
 ) {
   const fake = createFakeGitHub(options);
-  fake.addPull("o/r", { number: 7, headRef: "my-feature" });
+  fake.addPull("o/r", {
+    number: 7,
+    headRef: "my-feature",
+    title: "Redesign pricing",
+    author: { login: "ahanthorn", type: "User" },
+    ...options.pr,
+  });
   fake.addComment("o/r", 7, {
     authorLogin: "vercel[bot]",
     body: vercelComment(ORIGIN),
@@ -42,6 +52,8 @@ function setup(
     },
     signInUrl: (returnTo) => `/login?next=${encodeURIComponent(returnTo)}`,
     images: options.images,
+    onEvent: options.onEvent,
+    waitUntil: options.waitUntil,
     onError: (error) => errors.push(error),
   });
 
@@ -423,6 +435,161 @@ describe("threads", () => {
       query: `/asset?id=${items[0]!.id}&n=0`,
     });
     assert.equal(image.status, 200);
+  });
+
+  describe("events", () => {
+    it("tells onEvent about a thread, a reply and a thread ticked off, with who and where", async () => {
+      const events: ReviewEvent[] = [];
+      const { fake, call, signIn, comment } = setup({
+        onEvent: (event) => void events.push(event),
+      });
+      const ada = await signIn("ada");
+      const grace = await signIn("grace");
+
+      const posted = await call("POST", ada, { body: comment("Cut off") });
+      const { itemId } = (await posted.json()) as { itemId: string };
+      assert.equal(events.length, 1);
+      const [created] = events;
+      assert.equal(created!.type, "thread-created");
+      assert.equal(created!.actor.id, "id-ada");
+      assert.equal(created!.actor.name, "ada");
+      assert.equal(created!.thread.id, itemId);
+      assert.equal(created!.thread.text, "Cut off");
+      assert.deepEqual(created!.participants, []);
+      assert.deepEqual(created!.pull, {
+        number: 7,
+        title: "Redesign pricing",
+        url: "https://github.com/o/r/pull/7",
+        author: { login: "ahanthorn", type: "User" },
+      });
+      assert.equal(created!.links.page, `${ORIGIN}/cart`);
+      assert.match(
+        created!.links.thread,
+        /^https:\/\/github.com\/o\/r\/pull\/7#issuecomment-\d+$/,
+      );
+      assert.match(
+        fake.reviewBodies("o/r", 7)[0]!,
+        /Cut off/,
+        "saved before it was announced",
+      );
+
+      await call("POST", grace, {
+        query: `?reply_to=${itemId}`,
+        body: { text: "Same here" },
+      });
+      const replied = events[1]!;
+      assert.equal(replied.type, "reply-added");
+      assert.equal(
+        replied.type === "reply-added" && replied.reply.text,
+        "Same here",
+      );
+      assert.equal(replied.actor.name, "grace");
+      // the thread's other people, not the replier
+      assert.deepEqual(replied.participants, [{ id: "id-ada", name: "ada" }]);
+      assert.equal(replied.thread.replies.length, 1);
+
+      await call("PATCH", grace, {
+        query: `?id=${itemId}`,
+        body: { resolved: true },
+      });
+      const done = events[2]!;
+      assert.equal(done.type, "thread-resolved");
+      assert.equal(done.type === "thread-resolved" && done.resolved, true);
+      assert.deepEqual(
+        done.participants.map((p) => p.id),
+        ["id-ada"],
+      );
+    });
+
+    it("says nothing about changes that aren't a new thread, reply or tick", async () => {
+      const events: ReviewEvent[] = [];
+      const { call, signIn, comment } = setup({
+        onEvent: (event) => void events.push(event),
+      });
+      const ada = await signIn("ada");
+      const posted = await call("POST", ada, { body: comment("Cut off") });
+      const { itemId } = (await posted.json()) as { itemId: string };
+      events.length = 0;
+
+      await call("PATCH", ada, {
+        query: `?id=${itemId}`,
+        body: { text: "Edited" },
+      });
+      await call("PATCH", ada, {
+        query: `?id=${itemId}`,
+        body: {
+          selector: "main",
+          rect: { x: 0, y: 0, w: 1, h: 1 },
+          pageRect: { x: 0, y: 0, w: 1, h: 1 },
+        },
+      });
+      await call("DELETE", ada, { query: `?id=${itemId}` });
+      assert.deepEqual(events, []);
+    });
+
+    it("saves the comment even when onEvent throws, and reports it", async () => {
+      const { errors, call, signIn, comment, state } = setup({
+        onEvent: () => {
+          throw new Error("slack is down");
+        },
+      });
+      const ada = await signIn("ada");
+      const res = await call("POST", ada, { body: comment("Cut off") });
+      assert.equal(res.status, 200);
+      assert.equal((await state(ada)).items.length, 1);
+      assert.match(String(errors[0]), /slack is down/);
+    });
+
+    it("saves the comment when the PR can't be looked up, and reports it", async () => {
+      const events: ReviewEvent[] = [];
+      const { fake, errors, call, signIn, comment, state } = setup({
+        onEvent: (event) => void events.push(event),
+      });
+      fake.port.getPull = async () => {
+        throw new Error("github is down");
+      };
+      const ada = await signIn("ada");
+      assert.equal(
+        (await call("POST", ada, { body: comment("Cut off") })).status,
+        200,
+      );
+      assert.equal((await state(ada)).items.length, 1);
+      assert.deepEqual(events, []);
+      assert.match(String(errors[0]), /github is down/);
+    });
+
+    it("answers before onEvent finishes when the host has waitUntil, and still runs it", async () => {
+      let release!: () => void;
+      const finished = new Promise<void>((resolve) => (release = resolve));
+      const events: ReviewEvent[] = [];
+      const deferred: Promise<unknown>[] = [];
+      const { call, signIn, comment } = setup({
+        onEvent: async (event) => {
+          await finished;
+          events.push(event);
+        },
+        waitUntil: (work) => void deferred.push(work),
+      });
+      const ada = await signIn("ada");
+
+      const res = await call("POST", ada, { body: comment("Cut off") });
+      assert.equal(res.status, 200, "answered while onEvent was still waiting");
+      assert.equal(events.length, 0);
+      assert.equal(deferred.length, 1);
+
+      release();
+      await Promise.all(deferred);
+      assert.equal(events.length, 1);
+    });
+
+    it("asks GitHub about the PR once for a burst of events", async () => {
+      const { fake, call, signIn, comment } = setup({ onEvent: () => {} });
+      const ada = await signIn("ada");
+      for (const text of ["one", "two", "three"]) {
+        await call("POST", ada, { body: comment(text) });
+      }
+      assert.equal(fake.calls.getPull, 1);
+    });
   });
 
   describe("with images as a function", () => {

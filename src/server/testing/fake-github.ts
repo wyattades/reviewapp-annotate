@@ -1,4 +1,4 @@
-import type { GitHubPort, PullSummary } from "../github";
+import type { GitHubPort, PullInfo, PullSummary } from "../github";
 
 type FakeComment = {
   id: number;
@@ -19,6 +19,8 @@ export function createFakeGitHub({
   latencyMs = 0,
 } = {}) {
   const pulls = new Map<string, PullSummary[]>();
+  /** what a PR is called and who opened it, when a test says */
+  const pullInfo = new Map<string, Partial<PullInfo>>();
   const comments = new Map<string, Map<number, FakeComment>>();
   const refs = new Map<string, string>();
   const commits = new Map<string, string>();
@@ -42,6 +44,18 @@ export function createFakeGitHub({
   const port: GitHubPort = {
     async botLogin() {
       return botLogin;
+    },
+
+    async getPull(repo, number) {
+      count("getPull");
+      await wait();
+      return {
+        number,
+        title: `PR ${number}`,
+        url: `https://github.com/${repo}/pull/${number}`,
+        author: { login: "pr-author", type: "User" },
+        ...pullInfo.get(`${repo}#${number}`),
+      };
     },
 
     async listPulls(repo, { limit, state }) {
@@ -147,7 +161,22 @@ export function createFakeGitHub({
     assets,
     refs,
     commits,
-    addPull(repo: string, pull: Partial<PullSummary> & { number: number }) {
+    addPull(
+      repo: string,
+      {
+        title,
+        author,
+        ...pull
+      }: Partial<PullSummary> & { number: number } & Partial<
+          Pick<PullInfo, "title" | "author">
+        >,
+    ) {
+      if (title !== undefined || author !== undefined) {
+        pullInfo.set(`${repo}#${pull.number}`, {
+          ...(title !== undefined && { title }),
+          ...(author !== undefined && { author }),
+        });
+      }
       const all = pulls.get(repo) ?? [];
       all.push({
         state: "open",
