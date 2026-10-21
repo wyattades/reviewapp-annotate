@@ -148,12 +148,21 @@ export function slackMessage(
   );
 
   return {
-    text: `${event.actor.name} ${created ? "commented on" : "replied in a thread on"} ${event.pull.title} #${event.pull.number}: ${shorten(text, 140)}`,
+    // shown in notifications, and Slack reads it as mrkdwn too: escaped like the blocks
+    text: escapeSlack(
+      `${event.actor.name} ${created ? "commented on" : "replied in a thread on"} ${event.pull.title} #${event.pull.number}: ${shorten(text, 140)}`,
+    ),
     blocks,
   };
 }
 
 // --- sending ---
+
+/** The message without its image blocks. */
+const withoutImages = (message: SlackMessage): SlackMessage => ({
+  ...message,
+  blocks: message.blocks.filter((block) => block.type !== "image"),
+});
 
 export type SlackNotifierOptions = {
   /**
@@ -196,7 +205,13 @@ export function slackNotifier({
         });
         if (!message) return;
         try {
-          await send({ channel, ...message });
+          await send({ channel, ...message }).catch(async (error: unknown) => {
+            // Slack refuses a whole message when it can't fetch its image (a
+            // link that's private, or gone): tell them without it
+            const plain = withoutImages(message);
+            if (plain.blocks.length === message.blocks.length) throw error;
+            await send({ channel, ...plain });
+          });
         } catch (error) {
           failures.push(error);
         }

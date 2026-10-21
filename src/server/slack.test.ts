@@ -176,6 +176,20 @@ describe("slackMessage", () => {
     );
   });
 
+  it("escapes the notification text too, not only the blocks", () => {
+    const message = slackMessage(
+      created({
+        actor: { id: "grace", name: "<!channel> & co" },
+        pull: { ...common.pull, title: "<@UBOSS|click> a & b" },
+        thread: thread({ text: "<https://evil.test|Sign in> now" }),
+      }),
+    )!;
+    assert.doesNotMatch(message.text, /<[!@h]/);
+    assert.match(message.text, /&lt;!channel&gt; &amp; co/);
+    assert.match(message.text, /&lt;@UBOSS\|click&gt; a &amp; b/);
+    assert.match(message.text, /&lt;https:\/\/evil.test\|Sign in&gt; now/);
+  });
+
   it("has nothing to say about a thread ticked off", () => {
     assert.equal(slackMessage(resolved()), null);
   });
@@ -256,6 +270,55 @@ describe("slackNotifier", () => {
     const { sent, notify } = setup();
     await notify(resolved());
     assert.deepEqual(sent, []);
+  });
+
+  describe("when Slack can't fetch the screenshot", () => {
+    const withImage = created({
+      thread: thread({
+        imageUrls: ["https://abc.public.blob.vercel-storage.com/gone.jpg"],
+      }),
+    });
+    const hasImage = (m: SlackMessage) =>
+      m.blocks.some((b) => b.type === "image");
+
+    it("tells them again without it, since Slack refuses the whole message", async () => {
+      const attempts: SlackMessage[] = [];
+      const notify = slackNotifier({
+        resolveSlackUser,
+        send: async (message) => {
+          attempts.push(message);
+          if (hasImage(message)) throw new Error("invalid_blocks");
+        },
+      });
+      await notify(withImage);
+      assert.deepEqual(attempts.map(hasImage), [true, false]);
+      // the same message otherwise
+      assert.equal(attempts[1]!.blocks.length, attempts[0]!.blocks.length - 1);
+      assert.equal(attempts[1]!.text, attempts[0]!.text);
+    });
+
+    it("says so when it fails without the image too", async () => {
+      const notify = slackNotifier({
+        resolveSlackUser,
+        send: async () => {
+          throw new Error("channel_not_found");
+        },
+      });
+      await assert.rejects(notify(withImage), /Couldn't tell 1 of 1 on Slack/);
+    });
+
+    it("doesn't send a message with no image twice", async () => {
+      let attempts = 0;
+      const notify = slackNotifier({
+        resolveSlackUser,
+        send: async () => {
+          attempts++;
+          throw new Error("ratelimited");
+        },
+      });
+      await assert.rejects(notify(created()), /Couldn't tell 1 of 1 on Slack/);
+      assert.equal(attempts, 1);
+    });
   });
 
   it("tries everyone when one send fails, then says so", async () => {

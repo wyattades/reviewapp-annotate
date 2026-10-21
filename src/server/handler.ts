@@ -23,6 +23,9 @@ const rectSchema = z.object({
   h: z.number(),
 });
 
+/** How long a PR's title and author are remembered. */
+const PULL_TTL_MS = 5 * 60_000;
+
 const JPEG_DATA_URL = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/;
 
 const textSchema = z.object({ text: z.string().trim().min(1).max(4000) });
@@ -163,10 +166,15 @@ export function createHandler(config: ReviewAnnotateConfig) {
   /** A PR's title and author change rarely: don't ask for them on every comment. */
   const pullInfo = (target: ReviewTarget) => {
     const key = `${target.repo}#${target.prNumber}`;
+    const now = Date.now();
     const known = pulls.get(key);
-    if (known && Date.now() - known.at < 5 * 60_000) return known.pull;
+    if (known && now - known.at < PULL_TTL_MS) return known.pull;
+    // forget the PRs that haven't come up lately, so the map doesn't only grow
+    for (const [other, { at }] of pulls) {
+      if (now - at >= PULL_TTL_MS) pulls.delete(other);
+    }
     const pull = github.getPull(target.repo, target.prNumber);
-    pulls.set(key, { at: Date.now(), pull });
+    pulls.set(key, { at: now, pull });
     // a failure isn't remembered
     pull.catch(() => pulls.delete(key));
     return pull;
