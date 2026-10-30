@@ -1,0 +1,1163 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>
+      Redesign the pricing page by ada · Pull Request #128 · lumen/web
+    </title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='12' fill='%231f2328'/%3E%3C/svg%3E"
+    />
+    <!--
+      The PR the review comment lives on, as GitHub shows it. The review comment
+      itself is the server's own (pr.ts builds it with src/server/comment.ts);
+      the rest is set dressing. Shares its threads with the app (index.html)
+      through fake-api.js.
+    -->
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font:
+          14px/1.5 -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          "Noto Sans",
+          Helvetica,
+          Arial,
+          sans-serif;
+        color: #1f2328;
+        background: #fff;
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: #0969da;
+        text-decoration: none;
+      }
+      button {
+        font: inherit;
+        cursor: pointer;
+      }
+      svg.oct {
+        fill: currentColor;
+        vertical-align: text-bottom;
+        flex: none;
+      }
+      .muted {
+        color: #59636e;
+      }
+      .avatar {
+        border-radius: 50%;
+        flex: none;
+        display: block;
+        box-shadow: 0 0 0 1px rgba(31, 35, 40, 0.15);
+        background: #fff;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 32px;
+        padding: 0 12px;
+        border: 1px solid #d1d9e0;
+        border-radius: 6px;
+        background: #f6f8fa;
+        color: #25292e;
+        font-size: 14px;
+        font-weight: 500;
+        white-space: nowrap;
+      }
+      .btn.primary {
+        background: #1f883d;
+        border-color: rgba(31, 35, 40, 0.15);
+        color: #fff;
+      }
+      .btn.sm {
+        height: 28px;
+        padding: 0 10px;
+        font-size: 12px;
+      }
+      .counter {
+        display: inline-block;
+        min-width: 20px;
+        padding: 0 6px;
+        border-radius: 999px;
+        background: rgba(129, 139, 152, 0.2);
+        color: #1f2328;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 18px;
+        text-align: center;
+      }
+
+      /* --- header --- */
+      .app-header {
+        background: #f6f8fa;
+        border-bottom: 1px solid #d1d9e0;
+        padding: 16px 16px 0;
+      }
+      .header-top {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        height: 32px;
+      }
+      .icon-btn {
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #d1d9e0;
+        border-radius: 6px;
+        background: transparent;
+        color: #59636e;
+      }
+      .crumbs {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 14px;
+      }
+      .crumbs a {
+        color: #1f2328;
+        padding: 2px 6px;
+      }
+      .crumbs b {
+        font-weight: 600;
+      }
+      .search {
+        margin-left: auto;
+        width: 300px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 8px;
+        border: 1px solid #d1d9e0;
+        border-radius: 6px;
+        color: #59636e;
+        font-size: 14px;
+        background: #fff;
+      }
+      .search kbd {
+        margin-left: auto;
+        padding: 0 5px;
+        border: 1px solid #d1d9e0;
+        border-radius: 4px;
+        font:
+          11px ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+      .header-icons {
+        display: flex;
+        gap: 8px;
+      }
+      .repo-nav {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+        font-size: 14px;
+      }
+      .repo-nav a {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 8px 10px;
+        color: #1f2328;
+        border-bottom: 2px solid transparent;
+      }
+      .repo-nav a svg {
+        color: #59636e;
+      }
+      .repo-nav a.on {
+        font-weight: 600;
+        border-bottom-color: #fd8c73;
+      }
+
+      /* --- PR header --- */
+      main {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 24px 32px 48px;
+      }
+      .pr-title {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+      }
+      .pr-title h1 {
+        flex: 1;
+        margin: 0;
+        font-size: 32px;
+        font-weight: 400;
+        line-height: 1.25;
+      }
+      .pr-title h1 span {
+        color: #59636e;
+        font-weight: 300;
+      }
+      .pr-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #d1d9e0;
+        color: #59636e;
+      }
+      .state {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        background: #1f883d;
+        color: #fff;
+        font-weight: 500;
+      }
+      .pr-meta b {
+        color: #1f2328;
+        font-weight: 600;
+      }
+      .branch {
+        padding: 0 5px;
+        border-radius: 6px;
+        background: #ddf4ff;
+        color: #0969da;
+        font:
+          12px/20px ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+      .pr-tabs {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 16px;
+        border-bottom: 1px solid #d1d9e0;
+      }
+      .pr-tabs a {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        margin-bottom: -1px;
+        color: #59636e;
+        border: 1px solid transparent;
+        border-radius: 6px 6px 0 0;
+      }
+      .pr-tabs a svg {
+        color: #59636e;
+      }
+      .pr-tabs a.on {
+        color: #1f2328;
+        background: #fff;
+        border-color: #d1d9e0 #d1d9e0 #fff;
+      }
+      .diffstat {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .diffstat .add {
+        color: #1a7f37;
+      }
+      .diffstat .del {
+        color: #d1242f;
+      }
+      .diffstat i {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        margin-left: 1px;
+        background: #1f883d;
+      }
+      .diffstat i.r {
+        background: #d1242f;
+      }
+      .diffstat i.n {
+        background: #d1d9e0;
+      }
+
+      /* --- the conversation --- */
+      .layout {
+        display: flex;
+        gap: 24px;
+        margin-top: 24px;
+      }
+      .timeline {
+        flex: 1;
+        min-width: 0;
+      }
+      .item {
+        display: flex;
+        gap: 16px;
+        position: relative;
+      }
+      .item + .item,
+      .item + .event,
+      .event + .item {
+        margin-top: 16px;
+      }
+      .comment {
+        flex: 1;
+        min-width: 0;
+        position: relative;
+        border: 1px solid #d1d9e0;
+        border-radius: 6px;
+        background: #fff;
+      }
+      .comment::before,
+      .comment::after {
+        content: "";
+        position: absolute;
+        top: 11px;
+        left: -8px;
+        width: 8px;
+        height: 16px;
+        clip-path: polygon(0 50%, 100% 0, 100% 100%);
+        background: #d1d9e0;
+      }
+      .comment::after {
+        left: -7px;
+        background: #f6f8fa;
+      }
+      .comment.self {
+        border-color: #9cd7ff;
+      }
+      .comment.self::before {
+        background: #9cd7ff;
+      }
+      .comment.self::after,
+      .comment.self .comment-head {
+        background: #ddf4ff;
+      }
+      .comment-head {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 8px 16px;
+        border-bottom: 1px solid #d1d9e0;
+        border-radius: 6px 6px 0 0;
+        background: #f6f8fa;
+        color: #59636e;
+      }
+      .comment.self .comment-head {
+        border-bottom-color: #9cd7ff;
+      }
+      .comment-head b {
+        color: #1f2328;
+        font-weight: 600;
+      }
+      .comment-head .sp {
+        flex: 1;
+      }
+      .label-bot,
+      .label-role {
+        margin-left: 2px;
+        padding: 0 7px;
+        border: 1px solid #d1d9e0;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 18px;
+        color: #59636e;
+      }
+      .kebab {
+        padding: 0 4px;
+        border: 0;
+        background: none;
+        color: #59636e;
+        border-radius: 6px;
+      }
+      .kebab:hover {
+        background: rgba(129, 139, 152, 0.15);
+      }
+      .comment-body {
+        padding: 16px;
+      }
+      .event {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        margin-left: 40px;
+        padding: 0 0 0 16px;
+        position: relative;
+        color: #59636e;
+      }
+      .event::before {
+        content: "";
+        position: absolute;
+        left: 31px;
+        top: -16px;
+        bottom: -16px;
+        width: 2px;
+        background: #d1d9e0;
+      }
+      .event .badge {
+        position: relative;
+        z-index: 1;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: #f6f8fa;
+        border: 2px solid #fff;
+        color: #59636e;
+      }
+      .event .text {
+        padding-top: 5px;
+      }
+      .commits {
+        margin: 6px 0 0;
+        padding: 0;
+        list-style: none;
+        font-size: 12px;
+      }
+      .commits li {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 3px 0;
+      }
+      .commits a {
+        color: #1f2328;
+      }
+      .commits code {
+        margin-left: auto;
+        font:
+          12px ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        color: #59636e;
+      }
+
+      /* GitHub's markdown */
+      .markdown-body > :first-child {
+        margin-top: 0;
+      }
+      .markdown-body > :last-child {
+        margin-bottom: 0;
+      }
+      .markdown-body p,
+      .markdown-body ul,
+      .markdown-body table,
+      .markdown-body blockquote,
+      .markdown-body details {
+        margin: 0 0 16px;
+      }
+      .markdown-body h2 {
+        margin: 0 0 16px;
+        padding-bottom: 0.3em;
+        border-bottom: 1px solid #d1d9e0b3;
+        font-size: 1.5em;
+        font-weight: 600;
+        line-height: 1.25;
+      }
+      .markdown-body ul {
+        padding-left: 2em;
+      }
+      .markdown-body li + li {
+        margin-top: 0.25em;
+      }
+      .markdown-body li:has(> input[type="checkbox"]) {
+        list-style: none;
+        margin-left: -1.4em;
+      }
+      .markdown-body li > input[type="checkbox"] {
+        margin: 0 0.35em 0.25em -0.2em;
+        vertical-align: middle;
+      }
+      .markdown-body li ul {
+        margin: 0.25em 0 0;
+        list-style: disc;
+      }
+      .markdown-body code {
+        padding: 0.2em 0.4em;
+        border-radius: 6px;
+        background: rgba(129, 139, 152, 0.15);
+        font:
+          85% ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+      .markdown-body pre {
+        padding: 16px;
+        border-radius: 6px;
+        background: #f6f8fa;
+        overflow: auto;
+      }
+      .markdown-body pre code {
+        padding: 0;
+        background: none;
+      }
+      .markdown-body img {
+        max-width: 100%;
+        max-height: 260px;
+        border-radius: 6px;
+        vertical-align: top;
+      }
+      .markdown-body blockquote {
+        padding: 0 1em;
+        color: #59636e;
+        border-left: 0.25em solid #d1d9e0;
+      }
+      .markdown-body table {
+        border-collapse: collapse;
+        width: max-content;
+        max-width: 100%;
+      }
+      .markdown-body th,
+      .markdown-body td {
+        padding: 6px 13px;
+        border: 1px solid #d1d9e0;
+      }
+      .markdown-body th {
+        font-weight: 600;
+      }
+      .markdown-body tr:nth-child(2n) {
+        background: #f6f8fa;
+      }
+      .markdown-body details summary {
+        cursor: pointer;
+      }
+      .markdown-body sub {
+        color: #59636e;
+      }
+
+      /* editing a comment, as GitHub does */
+      .editor {
+        padding: 8px;
+      }
+      .editor .tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 8px;
+      }
+      .editor .tabs button {
+        padding: 4px 12px;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: none;
+        color: #59636e;
+      }
+      .editor .tabs button.on {
+        border-color: #d1d9e0;
+        background: #f6f8fa;
+        color: #1f2328;
+        font-weight: 600;
+      }
+      .editor textarea {
+        width: 100%;
+        min-height: 320px;
+        padding: 8px;
+        border: 1px solid #d1d9e0;
+        border-radius: 6px;
+        resize: vertical;
+        font:
+          12px/1.5 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+      .editor .preview {
+        min-height: 320px;
+        padding: 8px;
+      }
+      .editor .row {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      /* the merge box */
+      .merge {
+        border: 1px solid #d1d9e0;
+        border-radius: 6px;
+        overflow: hidden;
+      }
+      .merge .row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        border-bottom: 1px solid #d1d9e0;
+      }
+      .merge .row:last-child {
+        border-bottom: 0;
+        background: #f6f8fa;
+      }
+      .merge .ok {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #1f883d;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .merge b {
+        display: block;
+        font-size: 16px;
+      }
+      .merge small {
+        color: #59636e;
+        font-size: 12px;
+      }
+      .merge-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 6px;
+        background: #1f883d;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* --- sidebar --- */
+      .sidebar {
+        width: 256px;
+        flex: none;
+        font-size: 12px;
+      }
+      .sidebar section {
+        padding: 0 0 16px;
+        margin-bottom: 16px;
+        border-bottom: 1px solid #d1d9e0;
+      }
+      .sidebar h4 {
+        display: flex;
+        justify-content: space-between;
+        margin: 0 0 8px;
+        color: #59636e;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .sidebar .person {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 6px;
+        font-weight: 600;
+        color: #1f2328;
+      }
+      .sidebar .person .sp {
+        flex: 1;
+      }
+      .sidebar .labels {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .gh-label {
+        padding: 0 7px;
+        border-radius: 999px;
+        font-weight: 500;
+        line-height: 20px;
+        border: 1px solid;
+      }
+
+      /* as GitHub does once the title scrolls away: a compact one, pinned */
+      .sticky {
+        position: fixed;
+        inset: 0 0 auto;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 32px;
+        background: #fff;
+        border-bottom: 1px solid #d1d9e0;
+        box-shadow: 0 1px 3px rgba(31, 35, 40, 0.06);
+        transform: translateY(-100%);
+        transition: transform 0.15s;
+      }
+      .sticky.shown {
+        transform: none;
+      }
+      .sticky .state {
+        padding: 3px 10px;
+        font-size: 12px;
+      }
+      .sticky b {
+        font-weight: 600;
+      }
+      .sticky .muted {
+        font-size: 12px;
+      }
+
+      @media (max-width: 1000px) {
+        .sidebar {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="header-top">
+        <span class="icon-btn"
+          ><svg class="oct" width="16" height="16" viewBox="0 0 16 16">
+            <path
+              d="M1 2.75A.75.75 0 0 1 1.75 2h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 2.75Zm0 5A.75.75 0 0 1 1.75 7h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 7.75ZM1.75 12h12.5a.75.75 0 0 1 0 1.5H1.75a.75.75 0 0 1 0-1.5Z"
+            /></svg
+        ></span>
+        <svg class="oct" width="32" height="32" viewBox="0 0 24 24">
+          <path
+            d="M12 1C5.923 1 1 5.923 1 12c0 4.867 3.149 8.979 7.521 10.436.55.096.756-.233.756-.522 0-.262-.013-1.128-.013-2.049-2.764.509-3.479-.674-3.699-1.292-.124-.317-.66-1.293-1.127-1.554-.385-.207-.936-.715-.014-.729.866-.014 1.485.797 1.691 1.128.99 1.663 2.571 1.196 3.204.907.096-.715.385-1.196.701-1.471-2.448-.275-5.005-1.224-5.005-5.432 0-1.196.426-2.186 1.128-2.956-.111-.275-.496-1.402.11-2.915 0 0 .921-.288 3.024 1.128a10.193 10.193 0 0 1 2.75-.371c.936 0 1.871.123 2.75.371 2.104-1.43 3.025-1.128 3.025-1.128.605 1.513.221 2.64.111 2.915.701.77 1.127 1.747 1.127 2.956 0 4.222-2.571 5.157-5.019 5.432.399.344.743 1.004.743 2.035 0 1.471-.014 2.654-.014 3.025 0 .289.206.632.756.522C19.851 20.979 23 16.854 23 12c0-6.077-4.922-11-11-11Z"
+          />
+        </svg>
+        <div class="crumbs">
+          <a>lumen</a><span class="muted">/</span><a><b>web</b></a>
+        </div>
+        <div class="search">
+          <svg class="oct" width="16" height="16" viewBox="0 0 16 16">
+            <path
+              d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"
+            />
+          </svg>
+          Type <kbd style="margin: 0">/</kbd> to search
+        </div>
+        <div class="header-icons">
+          <span class="icon-btn"
+            ><svg class="oct" width="16" height="16" viewBox="0 0 16 16">
+              <path
+                d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"
+              /></svg
+          ></span>
+          <span class="icon-btn"
+            ><svg class="oct" width="16" height="16" viewBox="0 0 16 16">
+              <path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" />
+              <path
+                d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"
+              /></svg
+          ></span>
+          <span class="icon-btn"
+            ><svg class="oct" width="16" height="16" viewBox="0 0 16 16">
+              <path
+                d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354Z"
+              /></svg
+          ></span>
+          <span class="icon-btn"
+            ><svg class="oct" width="16" height="16" viewBox="0 0 16 16">
+              <path
+                d="M2.8 2.06A1.75 1.75 0 0 1 4.41 1h7.18c.7 0 1.333.417 1.61 1.06l2.74 6.395c.04.093.06.194.06.295v4.5A1.75 1.75 0 0 1 14.25 15H1.75A1.75 1.75 0 0 1 0 13.25v-4.5c0-.101.02-.202.06-.295Zm1.61.44a.25.25 0 0 0-.23.152L1.887 8H4.75a.75.75 0 0 1 .6.3L6.625 10h2.75l1.275-1.7a.75.75 0 0 1 .6-.3h2.863L11.82 2.652a.25.25 0 0 0-.23-.152Zm10.09 7h-2.875l-1.275 1.7a.75.75 0 0 1-.6.3h-3.5a.75.75 0 0 1-.6-.3L4.375 9.5H1.5v3.75c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25Z"
+              /></svg
+          ></span>
+          <img
+            class="avatar"
+            data-avatar="grace"
+            width="32"
+            height="32"
+            alt=""
+          />
+        </div>
+      </div>
+      <nav class="repo-nav">
+        <a
+          ><svg class="oct" width="16" height="16" viewBox="0 0 16 16">
+            <path
+              d="m11.28 3.22 4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734L13.94 8l-3.72-3.72a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215Zm-6.56 0a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042L2.06 8l3.72 3.72a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L.47 8.53a.75.75 0 0 1 0-1.06Z"
+            /></svg
+          >Code</a
+        >
+        <a
+          ><svg class="oct" width="16" height="16" viewBox="0 0 16 16">
+            <path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" />
+            <path
+              d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"
+            /></svg
+          >Issues <span class="counter">14</span></a
+        >
+        <a class="on"
+          ><svg class="oct" width="16" height="16" viewBox="0 0 16 16">
+            <path
+              d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354Z"
+            /></svg
+          >Pull requests <span class="counter">9</span></a
+        >
+        <a
+          ><svg class="oct" width="16" height="16" viewBox="0 0 16 16">
+            <path
+              d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Zm4.879-2.773 4.264 2.559a.25.25 0 0 1 0 .428l-4.264 2.559A.25.25 0 0 1 6 10.559V5.442a.25.25 0 0 1 .379-.215Z"
+            /></svg
+          >Actions</a
+        >
+        <a
+          ><svg class="oct" width="16" height="16" viewBox="0 0 16 16">
+            <path
+              d="M1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0 1 14.25 16H1.75A1.75 1.75 0 0 1 0 14.25V1.75C0 .784.784 0 1.75 0ZM1.5 1.75v12.5c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25V1.75a.25.25 0 0 0-.25-.25H1.75a.25.25 0 0 0-.25.25ZM11.75 3a.75.75 0 0 1 .75.75v7.5a.75.75 0 0 1-1.5 0v-7.5a.75.75 0 0 1 .75-.75Zm-8.25.75a.75.75 0 0 1 1.5 0v5.5a.75.75 0 0 1-1.5 0ZM8 3a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 3Z"
+            /></svg
+          >Projects</a
+        >
+        <a
+          ><svg class="oct" width="16" height="16" viewBox="0 0 16 16">
+            <path
+              d="M7.467.133a1.748 1.748 0 0 1 1.066 0l5.25 1.68A1.75 1.75 0 0 1 15 3.48V7c0 1.566-.32 3.182-1.303 4.682-.983 1.498-2.585 2.813-5.032 3.855a1.697 1.697 0 0 1-1.33 0c-2.447-1.042-4.049-2.357-5.032-3.855C1.32 10.182 1 8.566 1 7V3.48a1.755 1.755 0 0 1 1.217-1.667Zm.61 1.429a.25.25 0 0 0-.153 0l-5.25 1.68a.25.25 0 0 0-.174.238V7c0 1.358.275 2.666 1.057 3.86.784 1.194 2.121 2.34 4.366 3.297a.196.196 0 0 0 .154 0c2.245-.956 3.582-2.104 4.366-3.298C13.225 9.666 13.5 8.36 13.5 7V3.48a.251.251 0 0 0-.174-.237l-5.25-1.68Z"
+            /></svg
+          >Security</a
+        >
+        <a
+          ><svg class="oct" width="16" height="16" viewBox="0 0 16 16">
+            <path
+              d="M1.5 1.75V13.5h13.75a.75.75 0 0 1 0 1.5H.75a.75.75 0 0 1-.75-.75V1.75a.75.75 0 0 1 1.5 0Zm14.28 2.53-5.25 5.25a.75.75 0 0 1-1.06 0L7 7.06 4.28 9.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.25-3.25a.75.75 0 0 1 1.06 0L10 7.94l4.72-4.72a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042Z"
+            /></svg
+          >Insights</a
+        >
+      </nav>
+    </header>
+
+    <div class="sticky" aria-hidden="true">
+      <span class="state"
+        ><svg class="oct" width="14" height="14" viewBox="0 0 16 16">
+          <path
+            d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354Z"
+          /></svg
+        >Open</span
+      >
+      <div>
+        <b>Redesign the pricing page</b> <span class="muted">#128</span><br />
+        <span class="muted"
+          ><b style="color: #1f2328">ada</b> wants to merge 6 commits into
+          <span class="branch">main</span> from
+          <span class="branch">new-pricing</span></span
+        >
+      </div>
+    </div>
+    <script>
+      addEventListener("scroll", () =>
+        document
+          .querySelector(".sticky")
+          .classList.toggle("shown", scrollY > 220),
+      );
+    </script>
+
+    <main>
+      <div class="pr-title">
+        <h1>Redesign the pricing page <span>#128</span></h1>
+        <span class="btn">Edit</span>
+        <span class="btn primary">Code ▾</span>
+      </div>
+      <div class="pr-meta">
+        <span class="state"
+          ><svg class="oct" width="16" height="16" viewBox="0 0 16 16">
+            <path
+              d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354Z"
+            /></svg
+          >Open</span
+        >
+        <span
+          ><b>ada</b> wants to merge 6 commits into
+          <span class="branch">main</span> from
+          <span class="branch">new-pricing</span></span
+        >
+      </div>
+      <nav class="pr-tabs">
+        <a class="on"
+          ><svg class="oct" width="16" height="16" viewBox="0 0 16 16">
+            <path
+              d="M1.75 1h8.5c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 10.25 10H7.061l-2.574 2.573A1.458 1.458 0 0 1 2 11.543V10h-.25A1.75 1.75 0 0 1 0 8.25v-5.5C0 1.784.784 1 1.75 1ZM1.5 2.75v5.5c0 .138.112.25.25.25h1a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h3.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25h-8.5a.25.25 0 0 0-.25.25Zm13 2a.25.25 0 0 0-.25-.25h-.5a.75.75 0 0 1 0-1.5h.5c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 14.25 12H14v1.543a1.458 1.458 0 0 1-2.487 1.03L9.22 12.28a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215l2.22 2.22v-2.19a.75.75 0 0 1 .75-.75h1a.25.25 0 0 0 .25-.25Z"
+            /></svg
+          >Conversation <span class="counter">3</span></a
+        >
+        <a
+          ><svg class="oct" width="16" height="16" viewBox="0 0 16 16">
+            <path
+              d="M11.93 8.5a4.002 4.002 0 0 1-7.86 0H.75a.75.75 0 0 1 0-1.5h3.32a4.002 4.002 0 0 1 7.86 0h3.32a.75.75 0 0 1 0 1.5Zm-1.43-.75a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Z"
+            /></svg
+          >Commits <span class="counter">6</span></a
+        >
+        <a
+          ><svg class="oct" width="16" height="16" viewBox="0 0 16 16">
+            <path
+              d="M2.5 1.75v11.5c0 .138.112.25.25.25h3.17a.75.75 0 0 1 0 1.5H2.75A1.75 1.75 0 0 1 1 13.25V1.75C1 .784 1.784 0 2.75 0h8.5C12.216 0 13 .784 13 1.75v7.736a.75.75 0 0 1-1.5 0V1.75a.25.25 0 0 0-.25-.25h-8.5a.25.25 0 0 0-.25.25Zm13.274 9.537v-.001l-4.557 4.45a.75.75 0 0 1-1.055-.008l-1.943-1.95a.75.75 0 0 1 1.062-1.058l1.419 1.425 4.026-3.932a.75.75 0 1 1 1.048 1.074ZM4.75 4h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM4 7.75A.75.75 0 0 1 4.75 7h2a.75.75 0 0 1 0 1.5h-2A.75.75 0 0 1 4 7.75Z"
+            /></svg
+          >Checks <span class="counter">4</span></a
+        >
+        <a
+          ><svg class="oct" width="16" height="16" viewBox="0 0 16 16">
+            <path
+              d="M1 1.75C1 .784 1.784 0 2.75 0h7.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16H2.75A1.75 1.75 0 0 1 1 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25V4.664a.25.25 0 0 0-.073-.177l-2.914-2.914a.25.25 0 0 0-.177-.073ZM8 3.25a.75.75 0 0 1 .75.75v1.5h1.5a.75.75 0 0 1 0 1.5h-1.5v1.5a.75.75 0 0 1-1.5 0V7h-1.5a.75.75 0 0 1 0-1.5h1.5V4A.75.75 0 0 1 8 3.25Zm-3 8a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75Z"
+            /></svg
+          >Files changed <span class="counter">12</span></a
+        >
+        <span class="diffstat"
+          ><span class="add">+412</span><span class="del">−96</span
+          ><span><i></i><i></i><i></i><i class="r"></i><i class="n"></i></span
+        ></span>
+      </nav>
+
+      <div class="layout">
+        <div class="timeline">
+          <div class="item">
+            <img
+              class="avatar"
+              data-avatar="ada"
+              width="40"
+              height="40"
+              alt=""
+            />
+            <div class="comment">
+              <div class="comment-head">
+                <b>ada</b> commented 1 hour ago<span class="sp"></span
+                ><span class="label-role">Member</span
+                ><span class="label-role">Author</span
+                ><span class="kebab">···</span>
+              </div>
+              <div class="comment-body markdown-body">
+                <p>
+                  New pricing page: three plans instead of four, a
+                  monthly/annual switch, and the "Most popular" card.
+                </p>
+                <ul>
+                  <li>Plans and copy from the pricing doc</li>
+                  <li>
+                    Annual prices behind the switch (not wired to billing yet)
+                  </li>
+                </ul>
+                <p>
+                  Comment on the review app with the button in the corner 🙏
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="event">
+            <span class="badge"
+              ><svg class="oct" width="16" height="16" viewBox="0 0 16 16">
+                <path
+                  d="M11.93 8.5a4.002 4.002 0 0 1-7.86 0H.75a.75.75 0 0 1 0-1.5h3.32a4.002 4.002 0 0 1 7.86 0h3.32a.75.75 0 0 1 0 1.5Zm-1.43-.75a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Z"
+                /></svg
+            ></span>
+            <div class="text">
+              <img
+                class="avatar"
+                data-avatar="ada"
+                width="20"
+                height="20"
+                alt=""
+                style="
+                  display: inline-block;
+                  vertical-align: middle;
+                  margin-right: 4px;
+                "
+              /><b style="color: #1f2328">ada</b> added 6 commits 1 hour ago
+              <ul class="commits">
+                <li>
+                  <a>Three plans, with the Team plan up front</a
+                  ><code>8f3a1c2</code>
+                </li>
+                <li><a>Monthly/annual switch</a><code>c41d9e0</code></li>
+                <li><a>Shorter trial button copy</a><code>2b7e5f4</code></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="item" style="margin-top: 16px">
+            <img
+              class="avatar"
+              data-bot="vercel"
+              width="40"
+              height="40"
+              alt=""
+            />
+            <div class="comment">
+              <div class="comment-head">
+                <b>vercel</b><span class="label-bot">bot</span>&nbsp;commented 1
+                hour ago<span class="sp"></span><span class="kebab">···</span>
+              </div>
+              <div class="comment-body markdown-body">
+                <p>
+                  The latest updates on your projects. Learn more about
+                  <a>Vercel for Git ↗︎</a>
+                </p>
+                <table>
+                  <tr>
+                    <th>Project</th>
+                    <th>Deployment</th>
+                    <th>Preview</th>
+                    <th>Updated (UTC)</th>
+                  </tr>
+                  <tr>
+                    <td><b>lumen-web</b></td>
+                    <td>✅ Ready (<a>Inspect</a>)</td>
+                    <td><a>Visit Preview</a></td>
+                    <td>Oct 30, 2026 4:01pm</td>
+                  </tr>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- the review comment: pr.ts draws it -->
+          <div class="item" id="review-comment" style="margin-top: 16px">
+            <img
+              class="avatar"
+              data-bot="review"
+              width="40"
+              height="40"
+              alt=""
+            />
+            <div class="comment">
+              <div class="comment-head">
+                <b>lumen-review</b><span class="label-bot">bot</span>&nbsp;<span
+                  class="when"
+                  >commented</span
+                ><span class="sp"></span
+                ><button class="kebab" title="Edit">···</button>
+              </div>
+              <div class="comment-body markdown-body"></div>
+            </div>
+          </div>
+
+          <div class="item" style="margin-top: 24px">
+            <span class="merge-icon"
+              ><svg class="oct" width="24" height="24" viewBox="0 0 16 16">
+                <path
+                  d="M5.45 5.154A4.25 4.25 0 0 0 9.25 7.5h1.378a2.251 2.251 0 1 1 0 1.5H9.25A5.734 5.734 0 0 1 5 7.123v3.505a2.25 2.25 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.95-.218ZM4.25 13.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm8.5-4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM5 3.25a.75.75 0 1 0 0 .005V3.25Z"
+                /></svg
+            ></span>
+            <div class="merge" style="flex: 1">
+              <div class="row">
+                <span class="ok"
+                  ><svg class="oct" width="16" height="16" viewBox="0 0 16 16">
+                    <path
+                      d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"
+                    /></svg
+                ></span>
+                <div>
+                  <b>All checks have passed</b
+                  ><small>4 successful checks</small>
+                </div>
+              </div>
+              <div class="row">
+                <span class="ok"
+                  ><svg class="oct" width="16" height="16" viewBox="0 0 16 16">
+                    <path
+                      d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"
+                    /></svg
+                ></span>
+                <div>
+                  <b>This branch has no conflicts with the base branch</b
+                  ><small>Merging can be performed automatically.</small>
+                </div>
+              </div>
+              <div class="row">
+                <span class="btn primary">Merge pull request ▾</span
+                ><span class="muted"
+                  >You can also merge this with the command line.</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="sidebar">
+          <section>
+            <h4>Reviewers <span>⚙</span></h4>
+            <div class="person">
+              <img
+                class="avatar"
+                data-avatar="grace"
+                width="20"
+                height="20"
+                alt=""
+              />grace<span class="sp"></span><span class="muted">●</span>
+            </div>
+            <div class="person">
+              <img
+                class="avatar"
+                data-avatar="kai"
+                width="20"
+                height="20"
+                alt=""
+              />kai<span class="sp"></span><span style="color: #1a7f37">✓</span>
+            </div>
+          </section>
+          <section>
+            <h4>Assignees <span>⚙</span></h4>
+            <div class="person">
+              <img
+                class="avatar"
+                data-avatar="ada"
+                width="20"
+                height="20"
+                alt=""
+              />ada
+            </div>
+          </section>
+          <section>
+            <h4>Labels <span>⚙</span></h4>
+            <div class="labels">
+              <span
+                class="gh-label"
+                style="
+                  background: #d1f4e8;
+                  color: #0f5c47;
+                  border-color: #a7e3cf;
+                "
+                >design</span
+              >
+              <span
+                class="gh-label"
+                style="
+                  background: #ddf4ff;
+                  color: #0550ae;
+                  border-color: #b6e3ff;
+                "
+                >frontend</span
+              >
+              <span
+                class="gh-label"
+                style="
+                  background: #fff8c5;
+                  color: #7d4e00;
+                  border-color: #f5e0a0;
+                "
+                >needs review</span
+              >
+            </div>
+          </section>
+          <section>
+            <h4>Projects <span>⚙</span></h4>
+            <span class="muted">None yet</span>
+          </section>
+          <section>
+            <h4>Milestone <span>⚙</span></h4>
+            <span class="muted">Pricing launch</span>
+          </section>
+          <section style="border: 0">
+            <h4>Development <span>⚙</span></h4>
+            <span class="muted"
+              >Successfully merging this pull request may close these
+              issues.</span
+            >
+          </section>
+        </aside>
+      </div>
+    </main>
+
+    <!-- the shared threads, then the comment, then the playground's controls -->
+    <script src="fake-api.js"></script>
+    <script src="pr.js"></script>
+    <script src="toolbar.js"></script>
+  </body>
+</html>

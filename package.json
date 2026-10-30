@@ -83,6 +83,7 @@
   ],
   "scripts": {
     "dev": "node --experimental-strip-types ./scripts/dev.ts",
+    "screenshots": "node --experimental-strip-types ./scripts/screenshots.ts",
     "build": "node --experimental-strip-types ./scripts/build.ts",
     "build:widget": "node --experimental-strip-types ./scripts/build.ts --widget-only",
     "typecheck": "pnpm build:widget && tsc --noEmit -p .",
@@ -98,6 +99,7 @@
     "esbuild": "0.25.12",
     "html2canvas-pro": "^2.5.0",
     "marked": "^18.1.1",
+    "playwright": "^1.64.1",
     "preact": "^10.29.8",
     "prettier": "^3.9.10",
     "tsup": "^8.5.0",
