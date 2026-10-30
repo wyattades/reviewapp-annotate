@@ -1,11 +1,8 @@
 const Z = 2147483640;
 
 /** The pill's height, which popovers are placed against (`popoverStyle`). */
-export const PILL_HEIGHT = 36;
-/** The bar's single round button on a phone-sized screen: a comfortable tap target. */
+/** The bar's round button: a comfortable tap target. */
 export const ROUND_SIZE = 44;
-/** When the bar shrinks to that round button. */
-export const COMPACT_QUERY = "(max-width: 600px)";
 
 /** A pin sits on its rectangle's top-left corner, which its pointed bottom-left corner marks. */
 export const PIN_HEIGHT = 28;
@@ -48,34 +45,25 @@ export const STYLES = `
   button { font: inherit; color: inherit; }
   textarea { font: inherit; }
 
-  /* --- the pill: an add-comment button and a comment count, in one draggable shape --- */
-  .bar { position: fixed; z-index: ${Z + 6}; display: flex; align-items: stretch; height: ${PILL_HEIGHT}px; overflow: hidden;
-    white-space: nowrap; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; background: var(--ra-pill);
-    color: var(--ra-pill-ink); cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
-    box-shadow: var(--ra-shadow); }
+  /* --- the bar: a round add-comment button with a count badge; a problem floats beside it as its own pill --- */
+  .bar { position: fixed; z-index: ${Z + 6}; display: flex; align-items: stretch; gap: 6px; height: ${ROUND_SIZE}px;
+    white-space: nowrap; color: var(--ra-pill-ink); cursor: grab; touch-action: none; user-select: none;
+    -webkit-user-select: none; -webkit-touch-callout: none; }
   .bar.grabbing { cursor: grabbing; }
-  .seg { display: flex; align-items: center; gap: 6px; border: 0; background: none; color: inherit; cursor: pointer; }
+  .seg { display: flex; align-items: center; gap: 6px; border: 1px solid rgba(255,255,255,.18); border-radius: 999px;
+    background: var(--ra-pill); color: inherit; cursor: pointer; box-shadow: var(--ra-shadow); }
   /* touch leaves :hover on whatever was last touched: only for pointers that really hover */
   @media (hover: hover) { .seg:hover:not(:disabled) { background: var(--ra-pill-hover); } }
   .seg:disabled { opacity: .6; cursor: default; }
-  .seg.icon { padding: 0 9px 0 12px; }
-  .seg.icon.active { background: var(--ra-accent); color: var(--ra-accent-ink); }
-  .seg.meta.active { background: var(--ra-accent); color: var(--ra-accent-ink); }
-  .seg.meta.active .sub { opacity: .8; }
-  .seg.meta { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; padding: 0 14px 0 10px;
-    border-left: 1px solid rgba(255,255,255,.18); line-height: 1.15; text-align: left; }
   .seg .label { font-weight: 600; line-height: 1.15; }
   .seg .sub { display: inline-flex; align-items: center; gap: 4px; opacity: .65; font-size: 11px; line-height: 1.15; }
-
-  /* on a phone: the pill is one round button with a count badge, and a problem floats beside it as its own pill */
-  .bar.compact { height: ${ROUND_SIZE}px; gap: 6px; overflow: visible; border: 0; background: none; box-shadow: none; }
-  .bar.compact > .seg { border: 1px solid rgba(255,255,255,.18); border-radius: 999px; box-shadow: var(--ra-shadow); }
-  .seg.round { position: relative; width: ${ROUND_SIZE}px; justify-content: center; padding: 0; background: var(--ra-pill); }
+  .seg.round { position: relative; width: ${ROUND_SIZE}px; justify-content: center; padding: 0; }
   .seg.round svg { width: 20px; height: 20px; }
-  .seg.round.active { background: var(--ra-accent); color: var(--ra-accent-ink); }
+  .seg.round.active, .seg.round.active:hover { background: var(--ra-accent); color: var(--ra-accent-ink); }
   .seg.round .count { position: absolute; top: -5px; right: -5px; min-width: 20px; height: 20px; padding: 0 5px;
     display: flex; align-items: center; justify-content: center; border-radius: 999px; border: 1.5px solid var(--ra-pill);
     background: var(--ra-pill-ink); color: var(--ra-pill); font-size: 11px; font-weight: 700; line-height: 1; }
+  .seg.round .count svg { width: 10px; height: 10px; }
   .seg.round .count .spinner { width: 8px; height: 8px; }
 
   /* saving: a spinner in the pill's second line */
@@ -92,8 +80,9 @@ export const STYLES = `
 
   /* --- selecting a region --- */
   .hint { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: ${Z + 6}; padding: 8px 14px;
-    border-radius: 999px; background: var(--ra-accent); color: var(--ra-accent-ink); pointer-events: none;
-    box-shadow: var(--ra-shadow); }
+    border-radius: 18px; background: var(--ra-accent); color: var(--ra-accent-ink); pointer-events: none;
+    box-shadow: var(--ra-shadow); width: max-content; max-width: calc(100vw - 32px); text-align: center; }
+  .hint .sub { font-size: 12px; opacity: .75; }
   .catcher { position: fixed; inset: 0; z-index: ${Z + 4}; cursor: crosshair; touch-action: none; }
   /* a white hairline and a soft halo around the border, so it stands out on any background */
   .region { position: fixed; z-index: ${Z + 5}; pointer-events: none; border: 2px solid var(--ra-accent);
@@ -222,8 +211,6 @@ export const STYLES = `
   .panel .empty { padding: 8px; color: var(--ra-muted); }
   .panel .head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px 8px; }
   .panel .head a { color: #0969da; text-decoration: none; }
-  .panel .add { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-bottom: 4px; }
-  .panel .add svg { width: 16px; height: 16px; }
   .panel .head a:hover { text-decoration: underline; }
 
 `;

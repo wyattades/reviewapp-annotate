@@ -32,6 +32,12 @@ export const CheckCircleIcon = () => (
   </svg>
 );
 
+export const PlusIcon = () => (
+  <svg viewBox="0 0 24 24" width="10" height="10" {...stroke} stroke-width={3}>
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+
 export const MoreIcon = () => (
   <svg
     viewBox="0 0 24 24"

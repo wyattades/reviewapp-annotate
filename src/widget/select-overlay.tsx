@@ -6,9 +6,12 @@ type Point = { x: number; y: number };
 
 /** Covers the page while the commenter drags out a region to comment on, or clicks to drop a pin. */
 export function SelectOverlay({
+  touch,
   onSelect,
   onCancel,
 }: {
+  /** started by a tap: no Esc key or double-click to mention */
+  touch: boolean;
   onSelect: (rect: Rect) => void;
   onCancel: () => void;
 }) {
@@ -29,7 +32,12 @@ export function SelectOverlay({
   return (
     <>
       <div class="hint">
-        Drag to select an area, or click to drop a pin · Esc to cancel
+        {touch
+          ? "Drag to select an area, or tap to drop a pin · Tap the button to cancel"
+          : "Drag to select an area, or click to drop a pin · Esc to cancel"}
+        <div class="sub">
+          {touch ? "Long-press" : "Double-click"} the button for all comments
+        </div>
       </div>
       <div
         class="catcher"

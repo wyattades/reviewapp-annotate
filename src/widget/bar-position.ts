@@ -1,5 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
-import { COMPACT_QUERY, PILL_HEIGHT } from "./styles";
+import { ROUND_SIZE } from "./styles";
 
 /** How far the widget's bar sits from the viewport's right and bottom edges. */
 export type BarPosition = { right: number; bottom: number };
@@ -8,8 +8,10 @@ const KEY = "reviewapp-annotate-bar";
 const DEFAULT: BarPosition = { right: 16, bottom: 16 };
 /** Moving less than this is a click on a button, not a drag. */
 const DRAG_THRESHOLD = 4;
+/** Held this long without moving: a long press, not a click. */
+const LONG_PRESS_MS = 500;
 /** Keeps at least this much of the bar on screen. */
-const MIN_VISIBLE = { w: 140, h: PILL_HEIGHT };
+const MIN_VISIBLE = { w: ROUND_SIZE, h: ROUND_SIZE };
 const GAP = 8;
 
 const clamp = (pos: BarPosition): BarPosition => ({
@@ -44,9 +46,10 @@ function save(pos: BarPosition) {
 /**
  * The bar's position and the pointer handler that drags it. Buttons on the bar
  * still click: dragging only starts once the pointer has moved a few pixels,
- * and a drag doesn't also click whatever it ends over.
+ * and a drag doesn't also click whatever it ends over. Holding still on it is
+ * a long press (`onLongPress`), which doesn't click either.
  */
-export function useBarPosition() {
+export function useBarPosition(onLongPress: () => void) {
   const [pos, setPos] = useState(load);
   /** Held down: a class, not `:active`, which touch can leave stuck on after a drag. */
   const [grabbing, setGrabbing] = useState(false);
@@ -68,14 +71,21 @@ export function useBarPosition() {
       const from = pos;
       let last = from;
       let moving = false;
+      let longPressed = false;
+      const longPress = setTimeout(() => {
+        longPressed = true;
+        onLongPress();
+      }, LONG_PRESS_MS);
       setGrabbing(true);
 
       // on window, not the bar: a fast drag leaves the bar before the first move
       const onMove = (move: PointerEvent) => {
         const dx = move.clientX - start.x;
         const dy = move.clientY - start.y;
+        if (longPressed) return;
         if (!moving && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
         if (!moving) {
+          clearTimeout(longPress);
           // so the release is heard even over an iframe or outside the window
           try {
             bar.setPointerCapture(pointerId);
@@ -94,8 +104,9 @@ export function useBarPosition() {
         window.removeEventListener("blur", onEnd);
         bar.removeEventListener("lostpointercapture", onLost);
         setGrabbing(false);
-        if (!moving) return;
-        save(last);
+        clearTimeout(longPress);
+        if (!moving && !longPressed) return;
+        if (moving) save(last);
 
         // the release would otherwise click a button the bar ended up under
         const swallow = (click: Event) => click.stopImmediatePropagation();
@@ -120,23 +131,11 @@ export function useBarPosition() {
     },
     // the browser's own drag-and-drop would swallow the pointer events
     onDragStart: (event: DragEvent) => event.preventDefault(),
+    // a long press on a touch screen would also open the browser's menu
+    onContextMenu: (event: MouseEvent) => event.preventDefault(),
   };
 
   return { pos, grabbing, handlers };
-}
-
-/** On a phone-sized screen the bar is a single round button (see `.bar.compact`). */
-export function useCompact() {
-  const [compact, setCompact] = useState(
-    () => matchMedia(COMPACT_QUERY).matches,
-  );
-  useEffect(() => {
-    const query = matchMedia(COMPACT_QUERY);
-    const onChange = () => setCompact(query.matches);
-    query.addEventListener("change", onChange);
-    return () => query.removeEventListener("change", onChange);
-  }, []);
-  return compact;
 }
 
 /**
@@ -147,7 +146,7 @@ export function useCompact() {
 export function popoverStyle(
   pos: BarPosition,
   width: number,
-  barHeight = PILL_HEIGHT,
+  barHeight = ROUND_SIZE,
 ) {
   const right = Math.max(8, Math.min(pos.right, innerWidth - width - 8));
   const barBottomEdge = innerHeight - pos.bottom;

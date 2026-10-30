@@ -94,8 +94,27 @@
     },
   };
 
-  // signed in already
-  localStorage.setItem("reviewapp-annotate-token", "playground");
+  // signed in, unless "Sign out" in the page signed you out
+  const TOKEN_KEY = "reviewapp-annotate-token";
+  const SIGNED_OUT_KEY = "playground-signed-out";
+  const signedIn = () => !localStorage.getItem(SIGNED_OUT_KEY);
+  if (signedIn()) localStorage.setItem(TOKEN_KEY, "playground");
+  else localStorage.removeItem(TOKEN_KEY);
+  window.playgroundSignedIn = signedIn;
+  window.togglePlaygroundSignIn = () => {
+    if (signedIn()) localStorage.setItem(SIGNED_OUT_KEY, "1");
+    else localStorage.removeItem(SIGNED_OUT_KEY);
+    location.reload();
+  };
+  // the widget's "Sign in" opens the server's sign-in popup: here, just sign in
+  const realOpen = window.open.bind(window);
+  window.open = (url, ...rest) => {
+    if (!String(url).startsWith(`${API}/connect`))
+      return realOpen(url, ...rest);
+    localStorage.removeItem(SIGNED_OUT_KEY);
+    location.reload();
+    return null;
+  };
 
   const ok = (body = { ok: true }) => Response.json(body);
   const notFound = () => Response.json({ error: "Not found" }, { status: 404 });

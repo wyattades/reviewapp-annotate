@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { api, listenForToken, openSignIn, send, tokenStore } from "./api";
-import { popoverStyle, useBarPosition, useCompact } from "./bar-position";
+import { popoverStyle, useBarPosition } from "./bar-position";
 import { Composer } from "./composer";
 import { getConsoleEntries } from "./console-capture";
 import { describeTarget, findElement, locateItem, pageKey } from "./geometry";
-import { CommentIcon } from "./icons";
+import { CommentIcon, PlusIcon } from "./icons";
 import { Panel } from "./panel";
 import { Pins } from "./pins";
 import { SelectOverlay } from "./select-overlay";
-import { PANEL_WIDTH, PILL_HEIGHT, ROUND_SIZE, STYLES } from "./styles";
+import { PANEL_WIDTH, STYLES } from "./styles";
 import { Thread, type ThreadActions } from "./thread";
 import type { Context, Draft, Rect, ShownItem, Target } from "./types";
 
@@ -20,7 +20,8 @@ export const NAVIGATE_EVENT = "reviewapp-annotate-navigate";
 
 type Mode =
   | { kind: "idle" }
-  | { kind: "selecting" }
+  /** `touch`: started by a tap, so the hints talk about tapping, not Esc and clicks */
+  | { kind: "selecting"; touch: boolean }
   | { kind: "composing"; target: Target };
 
 /** Something that didn't save, shown in the pill. */
@@ -51,8 +52,13 @@ export function App({ host }: { host: HTMLElement }) {
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>();
   /** replies written to a comment that's still sending, to go out once it has an id */
   const queuedReplies = useRef(new Map<string, string[]>());
-  const { pos, grabbing, handlers: dragHandlers } = useBarPosition();
-  const compact = useCompact();
+  /** whether the round button was last pressed by a finger */
+  const touchRef = useRef(false);
+  const {
+    pos,
+    grabbing,
+    handlers: dragHandlers,
+  } = useBarPosition(() => showList());
 
   // --- sign-in ---
 
@@ -433,7 +439,14 @@ export function App({ host }: { host: HTMLElement }) {
   const startSelecting = () => {
     setPanelOpen(false);
     openThread(null);
-    setMode({ kind: "selecting" });
+    setMode({ kind: "selecting", touch: touchRef.current });
+  };
+  /** A long press or double-click on the round button: everyone's comments. */
+  const showList = () => {
+    if (!token || !context) return;
+    setMode({ kind: "idle" });
+    openThread(null);
+    setPanelOpen((isOpen) => !isOpen);
   };
 
   const pickItem = (item: ShownItem) => {
@@ -487,6 +500,7 @@ export function App({ host }: { host: HTMLElement }) {
       )}
       {selecting && (
         <SelectOverlay
+          touch={mode.touch}
           onSelect={(rect) =>
             setMode({ kind: "composing", target: describeTarget(rect, host) })
           }
@@ -503,124 +517,70 @@ export function App({ host }: { host: HTMLElement }) {
       )}
       {panelOpen && context && (
         <Panel
-          style={popoverStyle(
-            pos,
-            Math.min(PANEL_WIDTH, innerWidth - 16),
-            compact ? ROUND_SIZE : PILL_HEIGHT,
-          )}
+          style={popoverStyle(pos, Math.min(PANEL_WIDTH, innerWidth - 16))}
           commentUrl={context.commentUrl}
+          prNumber={context.prNumber}
           items={shown}
           onHover={hover}
           onUnhover={unhover}
           onPick={pickItem}
-          onAdd={compact ? startSelecting : undefined}
         />
       )}
 
       <div
-        class={`bar${compact ? " compact" : ""}${grabbing ? " grabbing" : ""}`}
+        class={`bar${grabbing ? " grabbing" : ""}`}
         style={{ right: pos.right, bottom: pos.bottom }}
         {...dragHandlers}
       >
-        {compact ? (
-          // one round button: it opens the list, where adding a comment starts
-          <button
-            type="button"
-            class={`seg round${selecting || panelOpen ? " active" : ""}`}
-            aria-pressed={panelOpen}
-            aria-label={
-              !token
-                ? "Sign in to comment"
-                : selecting
-                  ? "Cancel the comment"
-                  : context
-                    ? `${count} ${count === 1 ? "comment" : "comments"} on PR #${context.prNumber}`
-                    : status || "Loading comments"
-            }
-            disabled={!!token && !context}
-            onClick={() => {
-              if (!token) return openSignIn();
-              if (selecting) return setMode({ kind: "idle" });
-              setPanelOpen((isOpen) => !isOpen);
-            }}
-          >
-            <CommentIcon />
-            {savingCount > 0 ? (
-              <span class="count">
-                <span class="spinner" aria-hidden="true" />
-              </span>
-            ) : (
-              context &&
-              count > 0 && (
-                <span class="count" aria-hidden="true">
-                  {count > 99 ? "99+" : count}
-                </span>
-              )
-            )}
-          </button>
-        ) : (
-          <>
-            <button
-              type="button"
-              class={`seg icon${selecting ? " active" : ""}`}
-              title={
-                !token
-                  ? "Sign in to comment"
-                  : selecting
-                    ? "Cancel (Esc)"
-                    : "Add a comment"
-              }
-              aria-label={!token ? "Sign in to comment" : "Add a comment"}
-              disabled={!!token && !context}
-              onClick={() => {
-                if (!token) return openSignIn();
-                if (selecting) return setMode({ kind: "idle" });
-                startSelecting();
-              }}
-            >
-              <CommentIcon />
-            </button>
-            <button
-              type="button"
-              class={`seg meta${panelOpen ? " active" : ""}`}
-              aria-pressed={panelOpen}
-              disabled={!!token && !context}
-              title={
-                context
-                  ? panelOpen
-                    ? "Hide the comments"
-                    : "Show the comments on this PR"
-                  : undefined
-              }
-              onClick={() => {
-                if (!token) return openSignIn();
-                setPanelOpen((isOpen) => !isOpen);
-              }}
-            >
-              <span class="label">
-                {!token
-                  ? "Sign in"
-                  : !context
-                    ? status || "…"
-                    : `${count} ${count === 1 ? "Comment" : "Comments"}`}
-              </span>
-              <span class="sub">
-                {savingCount > 0 ? (
-                  <>
-                    <span class="spinner" aria-hidden="true" />
-                    Saving…
-                  </>
-                ) : !token ? (
-                  "to comment"
-                ) : context ? (
-                  `PR #${context.prNumber}`
+        <button
+          type="button"
+          class={`seg round${selecting || panelOpen ? " active" : ""}`}
+          aria-pressed={panelOpen}
+          title={
+            !token
+              ? "Sign in to comment"
+              : selecting
+                ? "Cancel the comment"
+                : "Add a comment · double-click or long-press for all comments"
+          }
+          aria-label={
+            !token
+              ? "Sign in to comment"
+              : selecting
+                ? "Cancel the comment"
+                : context
+                  ? `Add a comment (${count} on PR #${context.prNumber})`
+                  : status || "Loading comments"
+          }
+          disabled={!!token && !context}
+          onPointerDown={(event) => {
+            touchRef.current = event.pointerType === "touch";
+          }}
+          onClick={(event) => {
+            if (!token) return openSignIn();
+            // the second click of a double-click: the list, not another comment
+            if (event.detail >= 2) return showList();
+            if (selecting) return setMode({ kind: "idle" });
+            startSelecting();
+          }}
+        >
+          <CommentIcon />
+          {token && context && (
+            <span class="count" aria-hidden="true">
+              {savingCount > 0 ? (
+                <span class="spinner" />
+              ) : count > 0 ? (
+                count > 99 ? (
+                  "99+"
                 ) : (
-                  ""
-                )}
-              </span>
-            </button>
-          </>
-        )}
+                  count
+                )
+              ) : (
+                <PlusIcon />
+              )}
+            </span>
+          )}
+        </button>
         {problem && (
           <button
             type="button"

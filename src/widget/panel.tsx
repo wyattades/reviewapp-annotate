@@ -1,6 +1,6 @@
 import { Avatar } from "./avatar";
 import { pageKey } from "./geometry";
-import { CheckCircleIcon, CommentIcon } from "./icons";
+import { CheckCircleIcon } from "./icons";
 import { formatTime } from "./time";
 import type { ShownItem } from "./types";
 
@@ -8,21 +8,20 @@ import type { ShownItem } from "./types";
 export function Panel({
   style,
   commentUrl,
+  prNumber,
   items,
   onHover,
   onUnhover,
   onPick,
-  onAdd,
 }: {
   style: Record<string, string | number>;
   /** the PR comment the threads are collected in */
   commentUrl: string;
+  prNumber: number;
   items: ShownItem[];
   onHover: (id: string) => void;
   onUnhover: () => void;
   onPick: (item: ShownItem) => void;
-  /** on a phone the bar is only a round button, so adding a comment starts here */
-  onAdd?: () => void;
 }) {
   const open = items.filter((item) => !item.resolved);
   const resolved = items.filter((item) => item.resolved);
@@ -33,21 +32,15 @@ export function Panel({
         {resolved.length > 0 && ` · ${resolved.length} resolved`}
       </span>
       <a href={commentUrl} target="_blank" rel="noreferrer">
-        Open on GitHub ↗
+        PR #{prNumber} on GitHub ↗
       </a>
     </div>
   );
-  const add = onAdd && (
-    <button type="button" class="primary add" onClick={onAdd}>
-      <CommentIcon />
-      Add a comment
-    </button>
-  );
+
   if (!items.length) {
     return (
       <div class="panel card" style={style}>
         {header}
-        {add}
         <div class="empty">No comments yet.</div>
       </div>
     );
@@ -87,7 +80,6 @@ export function Panel({
   return (
     <div class="panel card" style={style}>
       {header}
-      {add}
       {open.map(row)}
       {resolved.length > 0 && <div class="section">Resolved</div>}
       {resolved.map(row)}
