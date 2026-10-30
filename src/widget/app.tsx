@@ -51,7 +51,7 @@ export function App({ host }: { host: HTMLElement }) {
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>();
   /** replies written to a comment that's still sending, to go out once it has an id */
   const queuedReplies = useRef(new Map<string, string[]>());
-  const { pos, handlers: dragHandlers } = useBarPosition();
+  const { pos, grabbing, handlers: dragHandlers } = useBarPosition();
 
   // --- sign-in ---
 
@@ -506,7 +506,7 @@ export function App({ host }: { host: HTMLElement }) {
       )}
 
       <div
-        class="bar"
+        class={`bar${grabbing ? " grabbing" : ""}`}
         style={{ right: pos.right, bottom: pos.bottom }}
         {...dragHandlers}
       >

@@ -48,6 +48,8 @@ function save(pos: BarPosition) {
  */
 export function useBarPosition() {
   const [pos, setPos] = useState(load);
+  /** Held down: a class, not `:active`, which touch can leave stuck on after a drag. */
+  const [grabbing, setGrabbing] = useState(false);
 
   // keep it on screen when the window shrinks
   useEffect(() => {
@@ -66,6 +68,7 @@ export function useBarPosition() {
       const from = pos;
       let last = from;
       let moving = false;
+      setGrabbing(true);
 
       // on window, not the bar: a fast drag leaves the bar before the first move
       const onMove = (move: PointerEvent) => {
@@ -90,6 +93,7 @@ export function useBarPosition() {
         window.removeEventListener("pointercancel", onEnd);
         window.removeEventListener("blur", onEnd);
         bar.removeEventListener("lostpointercapture", onLost);
+        setGrabbing(false);
         if (!moving) return;
         save(last);
 
@@ -118,7 +122,7 @@ export function useBarPosition() {
     onDragStart: (event: DragEvent) => event.preventDefault(),
   };
 
-  return { pos, handlers };
+  return { pos, grabbing, handlers };
 }
 
 /**

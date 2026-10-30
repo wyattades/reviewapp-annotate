@@ -49,9 +49,10 @@ export const STYLES = `
     white-space: nowrap; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; background: var(--ra-pill);
     color: var(--ra-pill-ink); cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
     box-shadow: var(--ra-shadow); }
-  .bar:active { cursor: grabbing; }
+  .bar.grabbing { cursor: grabbing; }
   .seg { display: flex; align-items: center; gap: 6px; border: 0; background: none; color: inherit; cursor: pointer; }
-  .seg:hover:not(:disabled) { background: var(--ra-pill-hover); }
+  /* touch leaves :hover on whatever was last touched: only for pointers that really hover */
+  @media (hover: hover) { .seg:hover:not(:disabled) { background: var(--ra-pill-hover); } }
   .seg:disabled { opacity: .6; cursor: default; }
   .seg.icon { padding: 0 9px 0 12px; }
   .seg.icon.active { background: var(--ra-accent); color: var(--ra-accent-ink); }
@@ -71,7 +72,7 @@ export const STYLES = `
   /* something didn't save: retry or dismiss it here */
   .seg.problem { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; padding: 0 14px 0 10px;
     background: var(--ra-danger); color: #fff; line-height: 1.15; }
-  .seg.problem:hover { background: color-mix(in srgb, var(--ra-danger) 85%, black); }
+  @media (hover: hover) { .seg.problem:hover { background: color-mix(in srgb, var(--ra-danger) 85%, black); } }
   .seg.problem .sub { opacity: .85; }
 
   /* --- selecting a region --- */
