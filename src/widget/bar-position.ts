@@ -1,5 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
-import { PILL_HEIGHT } from "./styles";
+import { COMPACT_QUERY, PILL_HEIGHT } from "./styles";
 
 /** How far the widget's bar sits from the viewport's right and bottom edges. */
 export type BarPosition = { right: number; bottom: number };
@@ -125,16 +125,34 @@ export function useBarPosition() {
   return { pos, grabbing, handlers };
 }
 
+/** On a phone-sized screen the bar is a single round button (see `.bar.compact`). */
+export function useCompact() {
+  const [compact, setCompact] = useState(
+    () => matchMedia(COMPACT_QUERY).matches,
+  );
+  useEffect(() => {
+    const query = matchMedia(COMPACT_QUERY);
+    const onChange = () => setCompact(query.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+  return compact;
+}
+
 /**
  * Where a popover `width` wide goes so it stays next to the bar and on screen:
  * above the bar when it's in the lower half of the screen, below it otherwise,
  * lined up with the bar's right edge unless that would push it off the left.
  */
-export function popoverStyle(pos: BarPosition, width: number) {
+export function popoverStyle(
+  pos: BarPosition,
+  width: number,
+  barHeight = PILL_HEIGHT,
+) {
   const right = Math.max(8, Math.min(pos.right, innerWidth - width - 8));
   const barBottomEdge = innerHeight - pos.bottom;
-  const inLowerHalf = barBottomEdge - PILL_HEIGHT / 2 > innerHeight / 2;
+  const inLowerHalf = barBottomEdge - barHeight / 2 > innerHeight / 2;
   return inLowerHalf
-    ? { right, bottom: pos.bottom + PILL_HEIGHT + GAP, top: "auto" }
+    ? { right, bottom: pos.bottom + barHeight + GAP, top: "auto" }
     : { right, top: barBottomEdge + GAP, bottom: "auto" };
 }

@@ -2,6 +2,10 @@ const Z = 2147483640;
 
 /** The pill's height, which popovers are placed against (`popoverStyle`). */
 export const PILL_HEIGHT = 36;
+/** The bar's single round button on a phone-sized screen: a comfortable tap target. */
+export const ROUND_SIZE = 44;
+/** When the bar shrinks to that round button. */
+export const COMPACT_QUERY = "(max-width: 600px)";
 
 /** A pin sits on its rectangle's top-left corner, which its pointed bottom-left corner marks. */
 export const PIN_HEIGHT = 28;
@@ -62,6 +66,17 @@ export const STYLES = `
     border-left: 1px solid rgba(255,255,255,.18); line-height: 1.15; text-align: left; }
   .seg .label { font-weight: 600; line-height: 1.15; }
   .seg .sub { display: inline-flex; align-items: center; gap: 4px; opacity: .65; font-size: 11px; line-height: 1.15; }
+
+  /* on a phone: the pill is one round button with a count badge, and a problem floats beside it as its own pill */
+  .bar.compact { height: ${ROUND_SIZE}px; gap: 6px; overflow: visible; border: 0; background: none; box-shadow: none; }
+  .bar.compact > .seg { border: 1px solid rgba(255,255,255,.18); border-radius: 999px; box-shadow: var(--ra-shadow); }
+  .seg.round { position: relative; width: ${ROUND_SIZE}px; justify-content: center; padding: 0; background: var(--ra-pill); }
+  .seg.round svg { width: 20px; height: 20px; }
+  .seg.round.active { background: var(--ra-accent); color: var(--ra-accent-ink); }
+  .seg.round .count { position: absolute; top: -5px; right: -5px; min-width: 20px; height: 20px; padding: 0 5px;
+    display: flex; align-items: center; justify-content: center; border-radius: 999px; border: 1.5px solid var(--ra-pill);
+    background: var(--ra-pill-ink); color: var(--ra-pill); font-size: 11px; font-weight: 700; line-height: 1; }
+  .seg.round .count .spinner { width: 8px; height: 8px; }
 
   /* saving: a spinner in the pill's second line */
   .spinner { width: 9px; height: 9px; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 50%;
@@ -194,7 +209,7 @@ export const STYLES = `
   .thread .reply-box textarea.field { flex: 1; min-height: 34px; max-height: 120px; overflow-y: auto; }
 
   /* --- the list --- */
-  .panel { position: fixed; z-index: ${Z + 6}; width: ${PANEL_WIDTH}px; max-height: 60vh; overflow: auto; padding: 6px; }
+  .panel { position: fixed; z-index: ${Z + 6}; width: ${PANEL_WIDTH}px; max-width: calc(100vw - 16px); max-height: 60vh; overflow: auto; padding: 6px; }
   .panel .item { display: flex; gap: 8px; width: 100%; padding: 8px; border: 0; border-radius: 6px; background: none;
     text-align: left; cursor: pointer; }
   .panel .item:hover { background: var(--ra-paper-2); }
@@ -207,6 +222,8 @@ export const STYLES = `
   .panel .empty { padding: 8px; color: var(--ra-muted); }
   .panel .head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px 8px; }
   .panel .head a { color: #0969da; text-decoration: none; }
+  .panel .add { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-bottom: 4px; }
+  .panel .add svg { width: 16px; height: 16px; }
   .panel .head a:hover { text-decoration: underline; }
 
 `;
