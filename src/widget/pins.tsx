@@ -146,6 +146,9 @@ export function Pins({
             setDrag({ ...drag, dx, dy, moved: isDrag });
           }}
           onPointerUp={() => endDrag(item, rect)}
+          // the browser's own drag-and-drop (an avatar image) or a long-press menu would cancel the touch
+          onDragStart={(event) => event.preventDefault()}
+          onContextMenu={(event) => event.preventDefault()}
           // the capture is lost (e.g. the window lost focus): leave it where it was
           onLostPointerCapture={() => setDrag(null)}
           onPointerEnter={() => onHover(item.id)}

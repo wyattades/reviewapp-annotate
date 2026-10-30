@@ -138,7 +138,9 @@ export const STYLES = `
 
   /* --- pins: a count (a sticky note), then up to three avatars behind it, each half hidden by the one before --- */
   .pin { position: fixed; z-index: ${Z + 3}; display: flex; align-items: center; padding: 0; border: 0;
-    background: none; cursor: pointer; touch-action: none; }
+    background: none; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none;
+    -webkit-touch-callout: none; }
+  .pin img { -webkit-user-drag: none; pointer-events: none; }
   .pin.dragging { cursor: grabbing; z-index: ${Z + 4}; }
   .pin.dragging .count { transform: scale(1.12); box-shadow: 0 6px 16px rgba(28,25,23,.35); }
   .pin .count { position: relative; z-index: 10; min-width: ${PIN_HEIGHT}px; height: ${PIN_HEIGHT}px; padding: 0 8px; display: flex;
