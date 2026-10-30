@@ -78,12 +78,18 @@ export function Pins({
   const [drag, setDrag] = useState<Drag | null>(null);
   /** a drag ends in a click on the pin: that click isn't one */
   const justDragged = useRef(false);
+  /** The pointer that's pressing a pin, until it's released: a move after that isn't a drag. */
+  const pressed = useRef<number | null>(null);
+  const stopDrag = () => {
+    pressed.current = null;
+    setDrag(null);
+  };
 
   // however the press ends (even when the pin never hears it), the drag is over
   const dragging = drag !== null;
   useEffect(() => {
     if (!dragging) return;
-    const end = () => setDrag(null);
+    const end = stopDrag;
     // bubbling, so the pin's own release (which saves the move) comes first
     window.addEventListener("pointerup", end);
     window.addEventListener("pointercancel", end, true);
@@ -115,7 +121,7 @@ export function Pins({
       justDragged.current = true;
       onMove(item, rect);
     }
-    setDrag(null);
+    stopDrag();
   };
 
   return (
@@ -144,6 +150,7 @@ export function Pins({
             event.stopPropagation();
             if (item.pending || event.button !== 0) return;
             event.currentTarget.setPointerCapture(event.pointerId);
+            pressed.current = event.pointerId;
             const { clientX: x, clientY: y } = event;
             setDrag({
               id: item.id,
@@ -155,14 +162,18 @@ export function Pins({
             });
           }}
           onPointerMove={(event) => {
-            if (drag?.id !== item.id) return;
-            const dx = event.clientX - drag.startX;
-            const dy = event.clientY - drag.startY;
-            const isDrag = drag.moved || Math.hypot(dx, dy) >= DRAG_THRESHOLD;
-            setDrag({ ...drag, dx, dy, moved: isDrag });
+            if (pressed.current !== event.pointerId) return;
+            setDrag((current) => {
+              if (current?.id !== item.id) return current;
+              const dx = event.clientX - current.startX;
+              const dy = event.clientY - current.startY;
+              const isDrag =
+                current.moved || Math.hypot(dx, dy) >= DRAG_THRESHOLD;
+              return { ...current, dx, dy, moved: isDrag };
+            });
           }}
           onPointerUp={() => endDrag(item, rect)}
-          onPointerCancel={() => setDrag(null)}
+          onPointerCancel={stopDrag}
           // the browser's own drag-and-drop (an avatar image) or a long-press menu would cancel the touch
           onDragStart={(event) => event.preventDefault()}
           onContextMenu={(event) => event.preventDefault()}
@@ -170,7 +181,7 @@ export function Pins({
           // Not for a child: touch captures to the child under the finger first, and
           // moving the capture to the pin fires (and bubbles) this for that child.
           onLostPointerCapture={(event) => {
-            if (event.target === event.currentTarget) setDrag(null);
+            if (event.target === event.currentTarget) stopDrag();
           }}
           onPointerEnter={() => onHover(item.id)}
           onPointerLeave={onUnhover}
