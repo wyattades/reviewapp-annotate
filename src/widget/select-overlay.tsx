@@ -4,6 +4,37 @@ import type { Rect } from "./types";
 
 type Point = { x: number; y: number };
 
+/**
+ * Where the hint goes: centered on what's on screen. Not `left: 50%`, which
+ * centers on the layout viewport, wider than the screen on a phone when the
+ * page overflows sideways (or is pinch-zoomed).
+ */
+function useHintPlace() {
+  const read = () => {
+    const view = window.visualViewport;
+    if (!view)
+      return { left: innerWidth / 2, top: 16, maxWidth: innerWidth - 32 };
+    return {
+      left: view.offsetLeft + view.width / 2,
+      top: view.offsetTop + 16,
+      maxWidth: view.width - 32,
+    };
+  };
+  const [place, setPlace] = useState(read);
+  useEffect(() => {
+    const view = window.visualViewport;
+    if (!view) return;
+    const update = () => setPlace(read());
+    view.addEventListener("resize", update);
+    view.addEventListener("scroll", update);
+    return () => {
+      view.removeEventListener("resize", update);
+      view.removeEventListener("scroll", update);
+    };
+  }, []);
+  return place;
+}
+
 /** Covers the page while the commenter drags out a region to comment on, or clicks to drop a pin. */
 export function SelectOverlay({
   touch,
@@ -17,6 +48,7 @@ export function SelectOverlay({
 }) {
   const [start, setStart] = useState<Point | null>(null);
   const [current, setCurrent] = useState<Point | null>(null);
+  const hintPlace = useHintPlace();
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -31,7 +63,7 @@ export function SelectOverlay({
 
   return (
     <>
-      <div class="hint">
+      <div class="hint" style={hintPlace}>
         {touch
           ? "Drag to select an area, or tap to drop a pin · Tap the button to cancel"
           : "Drag to select an area, or click to drop a pin · Esc to cancel"}
