@@ -172,6 +172,24 @@ export function App({ host }: { host: HTMLElement }) {
     if (!panelOpen) setHoverId(null);
   }, [panelOpen]);
 
+  // the list closes on a press anywhere outside the widget, or Escape. Inside
+  // it (the list, the Comments button), events arrive with the host as target.
+  useEffect(() => {
+    if (!panelOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.target !== host) setPanelOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPanelOpen(false);
+    };
+    window.addEventListener("pointerdown", onPointerDown, true);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown, true);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [panelOpen, host]);
+
   /** Opens a thread (or closes it with null); nothing is hovered once it's open. */
   const openThread = useCallback((id: string | null) => {
     setOpenId(id);
