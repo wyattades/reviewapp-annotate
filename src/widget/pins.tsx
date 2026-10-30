@@ -79,7 +79,7 @@ export function Pins({
   /** a drag ends in a click on the pin: that click isn't one */
   const justDragged = useRef(false);
   /** The pointer that's pressing a pin, until it's released: a move after that isn't a drag. */
-  const pressed = useRef<number | null>(null);
+  const pressed = useRef<{ id: number; type: string } | null>(null);
   const stopDrag = () => {
     pressed.current = null;
     setDrag(null);
@@ -150,7 +150,7 @@ export function Pins({
             event.stopPropagation();
             if (item.pending || event.button !== 0) return;
             event.currentTarget.setPointerCapture(event.pointerId);
-            pressed.current = event.pointerId;
+            pressed.current = { id: event.pointerId, type: event.pointerType };
             const { clientX: x, clientY: y } = event;
             setDrag({
               id: item.id,
@@ -162,7 +162,7 @@ export function Pins({
             });
           }}
           onPointerMove={(event) => {
-            if (pressed.current !== event.pointerId) return;
+            if (pressed.current?.id !== event.pointerId) return;
             setDrag((current) => {
               if (current?.id !== item.id) return current;
               const dx = event.clientX - current.startX;
@@ -180,8 +180,14 @@ export function Pins({
           // the capture is lost (e.g. the window lost focus): leave it where it was.
           // Not for a child: touch captures to the child under the finger first, and
           // moving the capture to the pin fires (and bubbles) this for that child.
+          // Firefox's touch simulation also reports a phantom "mouse" pointer with
+          // the finger's id: its capture changes aren't the finger's.
           onLostPointerCapture={(event) => {
-            if (event.target === event.currentTarget) stopDrag();
+            if (
+              event.target === event.currentTarget &&
+              event.pointerType === pressed.current?.type
+            )
+              stopDrag();
           }}
           onPointerEnter={() => onHover(item.id)}
           onPointerLeave={onUnhover}

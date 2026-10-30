@@ -62,6 +62,7 @@ export function useBarPosition() {
       const start = { x: event.clientX, y: event.clientY };
       const bar = event.currentTarget as HTMLElement;
       const pointerId = event.pointerId;
+      const type = event.pointerType;
       const from = pos;
       let last = from;
       let moving = false;
@@ -106,8 +107,10 @@ export function useBarPosition() {
       window.addEventListener("blur", onEnd);
       // Touch already captures the pointer to the child under the finger, so
       // capturing it to the bar fires this (and bubbles) for that child: not the end.
+      // (Firefox's touch simulation also reports a phantom "mouse" pointer with the finger's id.)
       const onLost = (lost: Event) => {
-        if (lost.target === bar) onEnd();
+        if (lost.target === bar && (lost as PointerEvent).pointerType === type)
+          onEnd();
       };
       bar.addEventListener("lostpointercapture", onLost);
     },
