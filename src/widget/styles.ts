@@ -103,7 +103,8 @@ export const STYLES = `
   /* --- selecting a region --- */
   /* placed on the visible screen by select-overlay.tsx; see-through, and presses go through it to the page */
   .hint { position: fixed; transform: translateX(-50%); z-index: ${Z + 6}; padding: 8px 14px; border-radius: 18px;
-    background: color-mix(in srgb, var(--ra-accent) 60%, transparent); color: var(--ra-accent-ink); pointer-events: none;
+    background: color-mix(in srgb, var(--ra-accent) 60%, transparent); color: var(--ra-accent-ink);
+    -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); pointer-events: none;
     box-shadow: 0 4px 14px rgba(28,25,23,.18); width: max-content; text-align: center; }
   .catcher { position: fixed; inset: 0; z-index: ${Z + 4}; cursor: crosshair; touch-action: none; }
   /* a white hairline and a soft halo around the border, so it stands out on any background */
