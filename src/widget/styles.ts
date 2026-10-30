@@ -50,6 +50,11 @@ export const STYLES = `
     white-space: nowrap; color: var(--ra-pill-ink); cursor: grab; touch-action: none; user-select: none;
     -webkit-user-select: none; -webkit-touch-callout: none; }
   .bar.grabbing { cursor: grabbing; }
+  /* on the left half of the screen: the round button first, the rest to its right */
+  .bar.on-left .seg.round { order: -1; }
+  .bar.on-left .seg.round .tip { right: auto; left: 0; }
+  .bar.on-left .seg.side { animation-name: ra-pop-right; }
+  @keyframes ra-pop-right { from { opacity: 0; transform: translateX(-8px); } }
   /* while dragged, the bar and pins lift off the page: a little bigger, see-through */
   .bar { transition: transform .12s, opacity .12s; }
   .bar.dragging { transform: scale(1.12); opacity: .75; }

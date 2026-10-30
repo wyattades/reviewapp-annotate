@@ -478,6 +478,8 @@ export function App({ host }: { host: HTMLElement }) {
   const shown = [...items, ...pending];
   const count = shown.filter((i) => !i.pending).length;
   const selecting = mode.kind === "selecting";
+  const barLeft = innerWidth - pos.right - ROUND_SIZE;
+  const onLeft = barLeft + ROUND_SIZE / 2 < innerWidth / 2;
   const open = shown.find((i) => i.id === openId);
   const onThisPage = open && pageKey(open.pageUrl) === pageKey(location.href);
 
@@ -544,8 +546,14 @@ export function App({ host }: { host: HTMLElement }) {
         class={`bar${grabbing ? " grabbing" : ""}${dragging ? " dragging" : ""}${
           // too close to the top for the tooltip above it
           innerHeight - pos.bottom - ROUND_SIZE < 48 ? " tip-below" : ""
-        }`}
-        style={{ right: pos.right, bottom: pos.bottom }}
+        }${onLeft ? " on-left" : ""}`}
+        style={
+          // pinned by the round button's edge nearest the middle, so what's
+          // beside it (the Comments button, a problem) grows toward the middle
+          onLeft
+            ? { left: barLeft, bottom: pos.bottom }
+            : { right: pos.right, bottom: pos.bottom }
+        }
         {...dragHandlers}
       >
         {/* while adding a comment (or reading the list): the way to the list, beside the round button */}
