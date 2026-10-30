@@ -141,7 +141,7 @@ export function Pins({
         <button
           key={item.id}
           type="button"
-          class={`pin${item.resolved ? " resolved" : ""}${item.pending ? " pending" : ""}${item.id === openId ? " open" : ""}${drag?.id === item.id && drag.moved ? " dragging" : ""}`}
+          class={`pin${item.resolved ? " resolved" : ""}${item.pending ? " pending" : ""}${item.id === openId ? " open" : ""}${drag?.id === item.id && drag.moved ? " dragging" : ""}${item.id === hoverId ? " hovered" : ""}`}
           style={{ left: rect.x, top: rect.y - PIN_HEIGHT }}
           aria-label={`Thread by ${item.author}, ${item.replies.length + 1} comments`}
           title={item.pending ? undefined : "Drag to move"}
@@ -189,7 +189,10 @@ export function Pins({
             )
               stopDrag();
           }}
-          onPointerEnter={() => onHover(item.id)}
+          // touch has no hover: a tap would leave the pin and its preview stuck "hovered"
+          onPointerEnter={(event) => {
+            if (event.pointerType !== "touch") onHover(item.id);
+          }}
           onPointerLeave={onUnhover}
           onClick={() => {
             if (justDragged.current) {

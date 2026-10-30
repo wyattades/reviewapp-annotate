@@ -147,15 +147,15 @@ export const STYLES = `
     align-items: center; justify-content: center; border-radius: 8px 8px 8px 2px; border: 2px solid #fff;
     background: var(--ra-sticky); color: var(--ra-sticky-ink); font-weight: 700;
     box-shadow: 0 2px 8px rgba(28,25,23,.3); transform-origin: bottom left; transition: background .12s, transform .12s; }
-  .pin:hover .count { background: var(--ra-sticky-hover); transform: scale(1.12); }
+  .pin.hovered .count { background: var(--ra-sticky-hover); transform: scale(1.12); }
   .pin .stack { display: flex; margin-left: -12px; }
   .pin .stack .avatar { position: relative; border: 2px solid #fff; margin-left: -12px; box-shadow: 0 1px 4px rgba(28,25,23,.3); }
   .pin .stack .avatar:first-child { margin-left: 0; }
   .pin.open .count { background: var(--ra-pill); color: var(--ra-pill-ink); }
-  .pin.open:hover .count { background: var(--ra-pill-hover); }
+  .pin.open.hovered .count { background: var(--ra-pill-hover); }
   .pin.resolved { opacity: .75; }
   .pin.resolved .count { background: var(--ra-resolved); color: var(--ra-resolved-ink); }
-  .pin.resolved:hover .count { background: var(--ra-resolved); filter: brightness(1.12); }
+  .pin.resolved.hovered .count { background: var(--ra-resolved); filter: brightness(1.12); }
   .pin.pending { opacity: .6; }
 
   /* --- the hover preview --- */
