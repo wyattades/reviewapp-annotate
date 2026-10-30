@@ -337,6 +337,12 @@
         PR comment
       </button>
       <button onclick="resetPlayground()">Reset threads</button>
+      <button id="sign-in" onclick="togglePlaygroundSignIn()">Sign out</button>
+      <script>
+        document.getElementById("sign-in").textContent = playgroundSignedIn()
+          ? "Sign out"
+          : "Sign in";
+      </script>
     </header>
     <!-- a fixed element, for trying comments on things that don't scroll -->
     <button id="help" class="help">Need help?</button>

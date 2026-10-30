@@ -32,6 +32,33 @@ export const CheckCircleIcon = () => (
   </svg>
 );
 
+export const PlusIcon = () => (
+  <svg viewBox="0 0 24 24" width="10" height="10" {...stroke} stroke-width={3}>
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+
+/** Signed out: commenting is locked until you sign in. */
+export const LockIcon = () => (
+  <svg
+    class="lock"
+    viewBox="0 0 24 24"
+    width="12"
+    height="12"
+    {...stroke}
+    stroke-width={2.75}
+  >
+    <rect x="5" y="11" width="14" height="10" rx="2" />
+    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+  </svg>
+);
+
+export const ListIcon = () => (
+  <svg viewBox="0 0 24 24" width="14" height="14" {...stroke}>
+    <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+  </svg>
+);
+
 export const MoreIcon = () => (
   <svg
     viewBox="0 0 24 24"

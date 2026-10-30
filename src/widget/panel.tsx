@@ -8,6 +8,7 @@ import type { ShownItem } from "./types";
 export function Panel({
   style,
   commentUrl,
+  prNumber,
   items,
   onHover,
   onUnhover,
@@ -16,6 +17,7 @@ export function Panel({
   style: Record<string, string | number>;
   /** the PR comment the threads are collected in */
   commentUrl: string;
+  prNumber: number;
   items: ShownItem[];
   onHover: (id: string) => void;
   onUnhover: () => void;
@@ -30,10 +32,11 @@ export function Panel({
         {resolved.length > 0 && ` · ${resolved.length} resolved`}
       </span>
       <a href={commentUrl} target="_blank" rel="noreferrer">
-        Open on GitHub ↗
+        PR #{prNumber} on GitHub ↗
       </a>
     </div>
   );
+
   if (!items.length) {
     return (
       <div class="panel card" style={style}>

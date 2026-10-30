@@ -4,11 +4,11 @@ import { popoverStyle, useBarPosition } from "./bar-position";
 import { Composer } from "./composer";
 import { getConsoleEntries } from "./console-capture";
 import { describeTarget, findElement, locateItem, pageKey } from "./geometry";
-import { CommentIcon } from "./icons";
+import { CommentIcon, ListIcon, LockIcon, PlusIcon } from "./icons";
 import { Panel } from "./panel";
 import { Pins } from "./pins";
 import { SelectOverlay } from "./select-overlay";
-import { PANEL_WIDTH, STYLES } from "./styles";
+import { PANEL_WIDTH, ROUND_SIZE, STYLES } from "./styles";
 import { Thread, type ThreadActions } from "./thread";
 import type { Context, Draft, Rect, ShownItem, Target } from "./types";
 
@@ -20,7 +20,8 @@ export const NAVIGATE_EVENT = "reviewapp-annotate-navigate";
 
 type Mode =
   | { kind: "idle" }
-  | { kind: "selecting" }
+  /** `touch`: started by a tap, so the hints talk about tapping, not Esc and clicks */
+  | { kind: "selecting"; touch: boolean }
   | { kind: "composing"; target: Target };
 
 /** Something that didn't save, shown in the pill. */
@@ -51,7 +52,9 @@ export function App({ host }: { host: HTMLElement }) {
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>();
   /** replies written to a comment that's still sending, to go out once it has an id */
   const queuedReplies = useRef(new Map<string, string[]>());
-  const { pos, grabbing, handlers: dragHandlers } = useBarPosition();
+  /** whether the round button was last pressed by a finger */
+  const touchRef = useRef(false);
+  const { pos, grabbing, dragging, handlers: dragHandlers } = useBarPosition();
 
   // --- sign-in ---
 
@@ -168,6 +171,24 @@ export function App({ host }: { host: HTMLElement }) {
   useEffect(() => {
     if (!panelOpen) setHoverId(null);
   }, [panelOpen]);
+
+  // the list closes on a press anywhere outside the widget, or Escape. Inside
+  // it (the list, the Comments button), events arrive with the host as target.
+  useEffect(() => {
+    if (!panelOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.target !== host) setPanelOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPanelOpen(false);
+    };
+    window.addEventListener("pointerdown", onPointerDown, true);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown, true);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [panelOpen, host]);
 
   /** Opens a thread (or closes it with null); nothing is hovered once it's open. */
   const openThread = useCallback((id: string | null) => {
@@ -429,6 +450,18 @@ export function App({ host }: { host: HTMLElement }) {
     );
   };
 
+  const startSelecting = () => {
+    setPanelOpen(false);
+    openThread(null);
+    setMode({ kind: "selecting", touch: touchRef.current });
+  };
+  /** The side button: everyone's comments, instead of adding one. */
+  const toggleList = () => {
+    setMode({ kind: "idle" });
+    openThread(null);
+    setPanelOpen((isOpen) => !isOpen);
+  };
+
   const pickItem = (item: ShownItem) => {
     if (pageKey(item.pageUrl) !== pageKey(location.href)) {
       location.href = item.pageUrl;
@@ -445,6 +478,28 @@ export function App({ host }: { host: HTMLElement }) {
   const shown = [...items, ...pending];
   const count = shown.filter((i) => !i.pending).length;
   const selecting = mode.kind === "selecting";
+  /** the list button shows while adding a comment or reading the list */
+  const listButton = context && (selecting || panelOpen) ? context : null;
+  const countBadge = token && context && (
+    <span
+      class={`count${!savingCount && count > 9 ? " wide" : ""}`}
+      aria-hidden="true"
+    >
+      {savingCount > 0 ? (
+        <span class="spinner" />
+      ) : count > 0 ? (
+        count > 99 ? (
+          "99+"
+        ) : (
+          count
+        )
+      ) : (
+        <PlusIcon />
+      )}
+    </span>
+  );
+  const barLeft = innerWidth - pos.right - ROUND_SIZE;
+  const onLeft = barLeft + ROUND_SIZE / 2 < innerWidth / 2;
   const open = shown.find((i) => i.id === openId);
   const onThisPage = open && pageKey(open.pageUrl) === pageKey(location.href);
 
@@ -480,6 +535,7 @@ export function App({ host }: { host: HTMLElement }) {
       )}
       {selecting && (
         <SelectOverlay
+          touch={mode.touch}
           onSelect={(rect) =>
             setMode({ kind: "composing", target: describeTarget(rect, host) })
           }
@@ -496,8 +552,9 @@ export function App({ host }: { host: HTMLElement }) {
       )}
       {panelOpen && context && (
         <Panel
-          style={popoverStyle(pos, PANEL_WIDTH)}
+          style={popoverStyle(pos, Math.min(PANEL_WIDTH, innerWidth - 16))}
           commentUrl={context.commentUrl}
+          prNumber={context.prNumber}
           items={shown}
           onHover={hover}
           onUnhover={unhover}
@@ -506,69 +563,73 @@ export function App({ host }: { host: HTMLElement }) {
       )}
 
       <div
-        class={`bar${grabbing ? " grabbing" : ""}`}
-        style={{ right: pos.right, bottom: pos.bottom }}
+        class={`bar${grabbing ? " grabbing" : ""}${dragging ? " dragging" : ""}${
+          // too close to the top for the tooltip above it
+          innerHeight - pos.bottom - ROUND_SIZE < 48 ? " tip-below" : ""
+        }${onLeft ? " on-left" : ""}`}
+        style={
+          // pinned by the round button's edge nearest the middle, so what's
+          // beside it (the Comments button, a problem) grows toward the middle
+          onLeft
+            ? { left: barLeft, bottom: pos.bottom }
+            : { right: pos.right, bottom: pos.bottom }
+        }
         {...dragHandlers}
       >
+        {/* while adding a comment (or reading the list): the way to the list, beside the round button */}
+        {listButton && (
+          <button
+            type="button"
+            class={`seg round side${panelOpen ? " active" : ""}`}
+            aria-pressed={panelOpen}
+            aria-label={`${panelOpen ? "Hide" : "Show"} the ${count} ${count === 1 ? "comment" : "comments"} on PR #${listButton.prNumber}`}
+            onClick={toggleList}
+          >
+            <ListIcon />
+            <span class="tip" aria-hidden="true">
+              {panelOpen ? "Hide the comments" : "All comments"}
+            </span>
+            {countBadge}
+          </button>
+        )}
         <button
           type="button"
-          class={`seg icon${selecting ? " active" : ""}`}
-          title={
+          class={`seg round main${selecting ? " active" : ""}`}
+          aria-label={
             !token
               ? "Sign in to comment"
               : selecting
-                ? "Cancel (Esc)"
-                : "Add a comment"
+                ? "Cancel the comment"
+                : context
+                  ? `Add a comment (${count} on PR #${context.prNumber})`
+                  : status || "Loading comments"
           }
-          aria-label={!token ? "Sign in to comment" : "Add a comment"}
           disabled={!!token && !context}
+          onPointerDown={(event) => {
+            touchRef.current = event.pointerType === "touch";
+          }}
           onClick={() => {
             if (!token) return openSignIn();
-            setPanelOpen(false);
-            openThread(null);
-            setMode(selecting ? { kind: "idle" } : { kind: "selecting" });
+            if (selecting) return setMode({ kind: "idle" });
+            startSelecting();
           }}
         >
           <CommentIcon />
-        </button>
-        <button
-          type="button"
-          class={`seg meta${panelOpen ? " active" : ""}`}
-          aria-pressed={panelOpen}
-          disabled={!!token && !context}
-          title={
-            context
-              ? panelOpen
-                ? "Hide the comments"
-                : "Show the comments on this PR"
-              : undefined
-          }
-          onClick={() => {
-            if (!token) return openSignIn();
-            setPanelOpen((isOpen) => !isOpen);
-          }}
-        >
-          <span class="label">
+          {/* on hover; not `title`, which shows late and looks out of place */}
+          <span class="tip" aria-hidden="true">
             {!token
-              ? "Sign in"
-              : !context
-                ? status || "…"
-                : `${count} ${count === 1 ? "Comment" : "Comments"}`}
+              ? "Sign in to comment"
+              : selecting
+                ? "Cancel the comment"
+                : "Add a comment"}
           </span>
-          <span class="sub">
-            {savingCount > 0 ? (
-              <>
-                <span class="spinner" aria-hidden="true" />
-                Saving…
-              </>
-            ) : !token ? (
-              "to comment"
-            ) : context ? (
-              `PR #${context.prNumber}`
-            ) : (
-              ""
-            )}
-          </span>
+          {!token && (
+            <span class="count" aria-hidden="true">
+              <LockIcon />
+            </span>
+          )}
+          {/* the count rides on the list button while it's there */}
+          {!listButton && countBadge}
         </button>
         {problem && (
           <button

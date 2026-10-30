@@ -1,7 +1,8 @@
 const Z = 2147483640;
 
 /** The pill's height, which popovers are placed against (`popoverStyle`). */
-export const PILL_HEIGHT = 36;
+/** The bar's round button: a comfortable tap target. */
+export const ROUND_SIZE = 44;
 
 /** A pin sits on its rectangle's top-left corner, which its pointed bottom-left corner marks. */
 export const PIN_HEIGHT = 28;
@@ -44,24 +45,48 @@ export const STYLES = `
   button { font: inherit; color: inherit; }
   textarea { font: inherit; }
 
-  /* --- the pill: an add-comment button and a comment count, in one draggable shape --- */
-  .bar { position: fixed; z-index: ${Z + 6}; display: flex; align-items: stretch; height: ${PILL_HEIGHT}px; overflow: hidden;
-    white-space: nowrap; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; background: var(--ra-pill);
-    color: var(--ra-pill-ink); cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
-    box-shadow: var(--ra-shadow); }
+  /* --- the bar: a round add-comment button with a count badge; a problem floats beside it as its own pill --- */
+  .bar { position: fixed; z-index: ${Z + 6}; display: flex; align-items: stretch; gap: 6px; height: ${ROUND_SIZE}px;
+    white-space: nowrap; color: var(--ra-pill-ink); cursor: grab; touch-action: none; user-select: none;
+    -webkit-user-select: none; -webkit-touch-callout: none; }
   .bar.grabbing { cursor: grabbing; }
-  .seg { display: flex; align-items: center; gap: 6px; border: 0; background: none; color: inherit; cursor: pointer; }
+  /* on the left half of the screen: the round button first, the rest to its right */
+  .bar.on-left .seg.main { order: -1; }
+  .bar.on-left .seg.round .tip { right: auto; left: 0; }
+  .bar.on-left .seg.side { animation-name: ra-pop-right; }
+  @keyframes ra-pop-right { from { opacity: 0; transform: translateX(-8px); } }
+  /* while dragged, the bar and pins lift off the page: a little bigger, see-through */
+  .bar { transition: transform .12s, opacity .12s; }
+  .bar.dragging { transform: scale(1.12); opacity: .75; }
+  .seg { display: flex; align-items: center; gap: 6px; border: 1px solid rgba(255,255,255,.18); border-radius: 999px;
+    background: var(--ra-pill); color: inherit; cursor: pointer; box-shadow: var(--ra-shadow); }
   /* touch leaves :hover on whatever was last touched: only for pointers that really hover */
   @media (hover: hover) { .seg:hover:not(:disabled) { background: var(--ra-pill-hover); } }
   .seg:disabled { opacity: .6; cursor: default; }
-  .seg.icon { padding: 0 9px 0 12px; }
-  .seg.icon.active { background: var(--ra-accent); color: var(--ra-accent-ink); }
-  .seg.meta.active { background: var(--ra-accent); color: var(--ra-accent-ink); }
-  .seg.meta.active .sub { opacity: .8; }
-  .seg.meta { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; padding: 0 14px 0 10px;
-    border-left: 1px solid rgba(255,255,255,.18); line-height: 1.15; text-align: left; }
   .seg .label { font-weight: 600; line-height: 1.15; }
   .seg .sub { display: inline-flex; align-items: center; gap: 4px; opacity: .65; font-size: 11px; line-height: 1.15; }
+  .seg.round { position: relative; width: ${ROUND_SIZE}px; justify-content: center; padding: 0; }
+  .seg.round svg { width: 20px; height: 20px; }
+  .seg.round.active, .seg.round.active:hover { background: var(--ra-accent); color: var(--ra-accent-ink); }
+  /* a circle, unless the count has two digits or more: then a pill */
+  .seg.round .count { position: absolute; top: -5px; right: -5px; min-width: 20px; height: 20px; padding: 0;
+    display: flex; align-items: center; justify-content: center; border-radius: 999px; border: 1.5px solid var(--ra-pill);
+    background: var(--ra-pill-ink); color: var(--ra-pill); font-size: 11px; font-weight: 700; line-height: 1; }
+  /* the list button, beside the round one while adding a comment or reading the list */
+  .seg.side { animation: ra-pop .12s ease-out; }
+  @keyframes ra-pop { from { opacity: 0; transform: translateX(8px); } }
+  .seg.round .count.wide { padding: 0 5px; }
+  .seg.round .count svg { width: 10px; height: 10px; }
+  .seg.round .count svg.lock { width: 12px; height: 12px; }
+  /* the round button's hover label, above it (below it near the top of the screen) */
+  .seg.round .tip { position: absolute; right: 0; bottom: calc(100% + 8px); padding: 4px 8px; border-radius: 6px;
+    background: var(--ra-pill); color: var(--ra-pill-ink); font-size: 12px; font-weight: 600; white-space: nowrap;
+    box-shadow: var(--ra-shadow); pointer-events: none; opacity: 0; transform: translateY(4px);
+    transition: opacity .12s, transform .12s; }
+  .bar.tip-below .seg.round .tip { bottom: auto; top: calc(100% + 8px); transform: translateY(-4px); }
+  @media (hover: hover) { .seg.round:hover .tip { opacity: 1; transform: none; transition-delay: .25s; } }
+  .bar.grabbing .seg.round .tip { display: none; }
+  .seg.round .count .spinner { width: 8px; height: 8px; }
 
   /* saving: a spinner in the pill's second line */
   .spinner { width: 9px; height: 9px; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 50%;
@@ -76,9 +101,11 @@ export const STYLES = `
   .seg.problem .sub { opacity: .85; }
 
   /* --- selecting a region --- */
-  .hint { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: ${Z + 6}; padding: 8px 14px;
-    border-radius: 999px; background: var(--ra-accent); color: var(--ra-accent-ink); pointer-events: none;
-    box-shadow: var(--ra-shadow); }
+  /* placed on the visible screen by select-overlay.tsx; see-through, and presses go through it to the page */
+  .hint { position: fixed; transform: translateX(-50%); z-index: ${Z + 6}; padding: 8px 14px; border-radius: 18px;
+    background: color-mix(in srgb, var(--ra-accent) 60%, transparent); color: var(--ra-accent-ink);
+    -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); pointer-events: none;
+    box-shadow: 0 4px 14px rgba(28,25,23,.18); width: max-content; text-align: center; }
   .catcher { position: fixed; inset: 0; z-index: ${Z + 4}; cursor: crosshair; touch-action: none; }
   /* a white hairline and a soft halo around the border, so it stands out on any background */
   .region { position: fixed; z-index: ${Z + 5}; pointer-events: none; border: 2px solid var(--ra-accent);
@@ -143,7 +170,8 @@ export const STYLES = `
     -webkit-touch-callout: none; }
   .pin img { -webkit-user-drag: none; pointer-events: none; }
   .pin.dragging { cursor: grabbing; z-index: ${Z + 4}; }
-  .pin.dragging .count { transform: scale(1.12); box-shadow: 0 6px 16px rgba(28,25,23,.35); }
+  .pin.dragging { transform: scale(1.15); transform-origin: bottom left; opacity: .75; }
+  .pin.dragging .count { transform: none; box-shadow: 0 6px 16px rgba(28,25,23,.35); }
   .pin .count { position: relative; z-index: 10; min-width: ${PIN_HEIGHT}px; height: ${PIN_HEIGHT}px; padding: 0 8px; display: flex;
     align-items: center; justify-content: center; border-radius: 8px 8px 8px 2px; border: 2px solid #fff;
     background: var(--ra-sticky); color: var(--ra-sticky-ink); font-weight: 700;
@@ -194,7 +222,7 @@ export const STYLES = `
   .thread .reply-box textarea.field { flex: 1; min-height: 34px; max-height: 120px; overflow-y: auto; }
 
   /* --- the list --- */
-  .panel { position: fixed; z-index: ${Z + 6}; width: ${PANEL_WIDTH}px; max-height: 60vh; overflow: auto; padding: 6px; }
+  .panel { position: fixed; z-index: ${Z + 6}; width: ${PANEL_WIDTH}px; max-width: calc(100vw - 16px); max-height: 60vh; overflow: auto; padding: 6px; }
   .panel .item { display: flex; gap: 8px; width: 100%; padding: 8px; border: 0; border-radius: 6px; background: none;
     text-align: left; cursor: pointer; }
   .panel .item:hover { background: var(--ra-paper-2); }

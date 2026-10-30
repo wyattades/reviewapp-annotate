@@ -1,5 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
-import { PILL_HEIGHT } from "./styles";
+import { ROUND_SIZE } from "./styles";
 
 /** How far the widget's bar sits from the viewport's right and bottom edges. */
 export type BarPosition = { right: number; bottom: number };
@@ -9,7 +9,7 @@ const DEFAULT: BarPosition = { right: 16, bottom: 16 };
 /** Moving less than this is a click on a button, not a drag. */
 const DRAG_THRESHOLD = 4;
 /** Keeps at least this much of the bar on screen. */
-const MIN_VISIBLE = { w: 140, h: PILL_HEIGHT };
+const MIN_VISIBLE = { w: ROUND_SIZE, h: ROUND_SIZE };
 const GAP = 8;
 
 const clamp = (pos: BarPosition): BarPosition => ({
@@ -50,6 +50,8 @@ export function useBarPosition() {
   const [pos, setPos] = useState(load);
   /** Held down: a class, not `:active`, which touch can leave stuck on after a drag. */
   const [grabbing, setGrabbing] = useState(false);
+  /** Moving: the bar lifts off the page (see `.bar.dragging`). */
+  const [dragging, setDragging] = useState(false);
 
   // keep it on screen when the window shrinks
   useEffect(() => {
@@ -84,6 +86,7 @@ export function useBarPosition() {
           }
         }
         moving = true;
+        setDragging(true);
         last = clamp({ right: from.right - dx, bottom: from.bottom - dy });
         setPos(last);
       };
@@ -94,6 +97,7 @@ export function useBarPosition() {
         window.removeEventListener("blur", onEnd);
         bar.removeEventListener("lostpointercapture", onLost);
         setGrabbing(false);
+        setDragging(false);
         if (!moving) return;
         save(last);
 
@@ -120,9 +124,11 @@ export function useBarPosition() {
     },
     // the browser's own drag-and-drop would swallow the pointer events
     onDragStart: (event: DragEvent) => event.preventDefault(),
+    // holding a finger still on it, before dragging, would open the browser's menu
+    onContextMenu: (event: MouseEvent) => event.preventDefault(),
   };
 
-  return { pos, grabbing, handlers };
+  return { pos, grabbing, dragging, handlers };
 }
 
 /**
@@ -130,11 +136,15 @@ export function useBarPosition() {
  * above the bar when it's in the lower half of the screen, below it otherwise,
  * lined up with the bar's right edge unless that would push it off the left.
  */
-export function popoverStyle(pos: BarPosition, width: number) {
+export function popoverStyle(
+  pos: BarPosition,
+  width: number,
+  barHeight = ROUND_SIZE,
+) {
   const right = Math.max(8, Math.min(pos.right, innerWidth - width - 8));
   const barBottomEdge = innerHeight - pos.bottom;
-  const inLowerHalf = barBottomEdge - PILL_HEIGHT / 2 > innerHeight / 2;
+  const inLowerHalf = barBottomEdge - barHeight / 2 > innerHeight / 2;
   return inLowerHalf
-    ? { right, bottom: pos.bottom + PILL_HEIGHT + GAP, top: "auto" }
+    ? { right, bottom: pos.bottom + barHeight + GAP, top: "auto" }
     : { right, top: barBottomEdge + GAP, bottom: "auto" };
 }
