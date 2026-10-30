@@ -3,377 +3,443 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>reviewapp-annotate playground</title>
+    <title>Pricing · Lumen</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='7' fill='%230f766e'/%3E%3C/svg%3E"
+    />
     <style>
+      * {
+        box-sizing: border-box;
+      }
       body {
         margin: 0;
         font:
-          15px/1.5 system-ui,
+          15px/1.55 -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          system-ui,
           sans-serif;
         color: #14261f;
         background: #fbfaf7;
+        -webkit-font-smoothing: antialiased;
       }
-      header {
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      button {
+        font: inherit;
+        cursor: pointer;
+      }
+      .wrap {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 0 32px;
+      }
+
+      /* --- nav --- */
+      .site-nav {
         position: sticky;
         top: 0;
         z-index: 10;
-        background: #fbfaf7;
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 12px 24px;
-        padding: 16px 40px;
+        background: rgba(251, 250, 247, 0.88);
+        backdrop-filter: saturate(1.4) blur(10px);
         border-bottom: 1px solid #eeebe3;
       }
-      header b {
-        font-size: 18px;
-      }
-      header .sp {
-        flex: 1;
-      }
-      .help {
-        position: fixed;
-        right: 24px;
-        top: 110px;
-        z-index: 10;
-        padding: 10px 16px;
-        border-radius: 999px;
-        border: 0;
-        background: #0f766e;
-        color: #fff;
-        font-weight: 600;
-        box-shadow: 0 4px 14px rgba(15, 118, 110, 0.35);
-      }
-      main {
-        max-width: 960px;
-        margin: 0 auto;
-        padding: 32px clamp(16px, 4vw, 40px) 120px;
-      }
-      h1 {
-        font-size: 40px;
-        line-height: 1.1;
-        letter-spacing: -1px;
-        margin: 24px 0 8px;
-      }
-      .plans {
+      .site-nav .wrap {
+        height: 64px;
         display: flex;
-        gap: 18px;
-        flex-wrap: wrap;
-        margin-top: 28px;
+        align-items: center;
+        gap: 28px;
       }
-      .plan {
-        flex: 1;
-        min-width: 220px;
-        padding: 22px;
-        border-radius: 16px;
-        background: #fff;
-        border: 1px solid #ebe7dc;
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-right: 20px;
+        font-weight: 700;
+        font-size: 18px;
+        letter-spacing: -0.3px;
       }
-      .plan button {
-        width: 100%;
-        margin-top: 16px;
-        height: 40px;
-        border-radius: 10px;
-        border: 1px solid #d9d4c7;
-        background: #fff;
+      .brand i {
+        width: 22px;
+        height: 22px;
+        border-radius: 7px;
+        background: linear-gradient(135deg, #0f766e, #34d399);
+      }
+      .links {
+        display: flex;
+        gap: 26px;
+        color: #5a625e;
+        font-size: 14px;
+      }
+      .links .on {
+        color: #14261f;
         font-weight: 600;
       }
-      #plan-team {
-        border: 2px solid #0f766e;
+      .sp {
+        flex: 1;
       }
-      #plan-team button {
-        background: #0f766e;
-        color: #fff;
-        border-color: #0f766e;
-      }
-      .note {
-        margin-top: 48px;
-        padding: 16px;
-        border-radius: 12px;
-        background: #fff;
-        border: 1px dashed #d9d4c7;
+      .sign-in {
         color: #5a625e;
+        font-size: 14px;
       }
-      .tall {
-        height: 900px;
-        margin-top: 40px;
-        border-radius: 16px;
-        background: linear-gradient(#f1efe8, #fbfaf7);
-        padding: 24px;
-        color: #8a8f8b;
+      .cta {
+        padding: 8px 14px;
+        border-radius: 9px;
+        background: #14261f;
+        color: #fff;
+        font-size: 13.5px;
+        font-weight: 600;
       }
 
-      /* --- the PR comment preview: GitHub, on the left --- */
-      body.with-preview {
-        margin-left: min(460px, 45vw);
+      /* --- hero --- */
+      .hero {
+        text-align: center;
+        padding: 64px 0 36px;
       }
-      #pr-comment {
-        position: fixed;
-        inset: 0 auto 0 0;
-        width: min(460px, 45vw);
-        display: none;
-        flex-direction: column;
-        background: #fff;
-        border-right: 1px solid #d1d9e0;
-        color: #1f2328;
-        font:
-          14px/1.5 -apple-system,
-          BlinkMacSystemFont,
-          "Segoe UI",
-          sans-serif;
-      }
-      body.with-preview #pr-comment {
-        display: flex;
-      }
-      #pr-comment .bar {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 10px 14px;
-        background: #f6f8fa;
-        border-bottom: 1px solid #d1d9e0;
-        color: #59636e;
-        font-size: 13px;
-      }
-      #pr-comment .bar b {
-        color: #1f2328;
-      }
-      #pr-comment .bot {
-        border: 1px solid #d1d9e0;
+      .eyebrow {
+        display: inline-block;
+        padding: 4px 11px;
         border-radius: 999px;
-        padding: 0 6px;
-        font-size: 11px;
+        background: #e3f5ee;
+        color: #0f766e;
+        font-size: 12.5px;
+        font-weight: 600;
       }
-      #pr-comment .tabs {
-        margin-left: auto;
-        display: flex;
-        gap: 2px;
+      h1 {
+        margin: 16px auto 0;
+        max-width: 640px;
+        font-size: 48px;
+        line-height: 1.06;
+        letter-spacing: -1.6px;
+        font-weight: 750;
       }
-      #pr-comment .tabs button {
-        border: 1px solid transparent;
-        border-radius: 6px;
-        background: none;
-        padding: 2px 8px;
-        font: inherit;
-        color: #59636e;
-        cursor: pointer;
+      .lede {
+        margin: 14px 0 0;
+        color: #5a625e;
+        font-size: 17px;
       }
-      #pr-comment[data-view="rendered"] [data-view="rendered"],
-      #pr-comment[data-view="source"] [data-view="source"] {
+      .billing {
+        display: inline-flex;
+        margin-top: 26px;
+        padding: 4px;
+        border-radius: 999px;
+        background: #f0ede4;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .billing span {
+        padding: 6px 14px;
+        border-radius: 999px;
+        color: #5a625e;
+      }
+      .billing .on {
         background: #fff;
-        border-color: #d1d9e0;
-        color: #1f2328;
+        color: #14261f;
+        box-shadow: 0 1px 3px rgba(20, 38, 31, 0.12);
       }
-      #pr-comment[data-view="rendered"] .source,
-      #pr-comment[data-view="source"] .rendered {
-        display: none;
+
+      /* --- plans --- */
+      .plans {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        align-items: start;
       }
-      #pr-comment .rendered,
-      #pr-comment .source {
-        flex: 1;
-        overflow: auto;
+      .plan {
+        position: relative;
+        padding: 26px;
+        border-radius: 18px;
+        background: #fff;
+        border: 1px solid #ebe7dc;
+        box-shadow: 0 1px 2px rgba(20, 38, 31, 0.04);
+      }
+      .plan.pop {
+        border: 2px solid #0f766e;
+        box-shadow: 0 18px 40px rgba(15, 118, 110, 0.14);
+      }
+      .tag {
+        position: absolute;
+        top: -12px;
+        right: 20px;
+        padding: 3px 10px;
+        border-radius: 999px;
+        background: #e3f5ee;
+        color: #0f766e;
+        font-size: 11.5px;
+        font-weight: 700;
+        border: 1px solid #c4e8da;
+      }
+      .plan h3 {
         margin: 0;
-        padding: 14px 18px;
+        font-size: 16px;
       }
-      #pr-comment .source {
+      .plan .for {
+        margin: 4px 0 0;
+        color: #7b827e;
+        font-size: 13.5px;
+      }
+      .price {
+        margin-top: 16px;
+        font-size: 40px;
+        font-weight: 750;
+        letter-spacing: -1.2px;
+      }
+      .price span {
+        font-size: 14px;
+        color: #7b827e;
+        font-weight: 500;
+        letter-spacing: 0;
+      }
+      .plan ul {
+        list-style: none;
+        margin: 18px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 9px;
+        color: #48504c;
+        font-size: 14px;
+      }
+      .plan li::before {
+        content: "✓";
+        color: #0f766e;
+        font-weight: 700;
+        margin-right: 9px;
+      }
+      .btn {
         display: flex;
-        flex-direction: column;
-        gap: 8px;
-        background: #f6f8fa;
-      }
-      #pr-comment .source textarea {
-        flex: 1;
-        resize: none;
-        border: 1px solid #d1d9e0;
-        border-radius: 6px;
-        padding: 8px;
-        font:
-          12px/1.5 ui-monospace,
-          SFMono-Regular,
-          Menlo,
-          monospace;
-      }
-      #pr-comment .edit-bar {
-        display: flex;
-        gap: 8px;
         align-items: center;
-        font-size: 12px;
-        color: #59636e;
+        justify-content: center;
+        width: 100%;
+        height: 44px;
+        margin-top: 24px;
+        border-radius: 11px;
+        border: 1px solid #d9d4c7;
+        background: #fff;
+        color: #14261f;
+        font-weight: 650;
+        font-size: 14.5px;
       }
-      #pr-comment .edit-bar code {
-        white-space: pre;
-      }
-      #pr-comment .save {
-        margin-left: auto;
-        flex: none;
-        padding: 4px 10px;
-        border-radius: 6px;
-        border: 1px solid #1f883d;
-        background: #1f883d;
+      .pop .btn {
+        background: #0f766e;
+        border-color: #0f766e;
         color: #fff;
-        font: inherit;
+      }
+
+      .logos {
+        margin: 48px 0 0;
+        text-align: center;
+        color: #a19c90;
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .logos div {
+        margin-top: 16px;
+        display: flex;
+        justify-content: center;
+        gap: 44px;
+        color: #b5b0a4;
+        font-size: 19px;
+        font-weight: 700;
+        letter-spacing: -0.3px;
+        text-transform: none;
+      }
+
+      /* --- FAQ and footer: a long page, for trying pins on scrolled content --- */
+      .faq {
+        max-width: 720px;
+        margin: 96px auto 0;
+      }
+      .faq h2 {
+        font-size: 28px;
+        letter-spacing: -0.6px;
+        text-align: center;
+      }
+      .faq details {
+        padding: 18px 4px;
+        border-bottom: 1px solid #ebe7dc;
+      }
+      .faq summary {
         font-weight: 600;
         cursor: pointer;
       }
-      #pr-comment .updated {
-        padding: 8px 14px;
-        border-top: 1px solid #d1d9e0;
-        color: #59636e;
-        font-size: 12px;
+      .faq p {
+        margin: 8px 0 0;
+        color: #5a625e;
       }
-      #pr-comment .empty {
-        color: #59636e;
-      }
-      /* enough of GitHub's markdown look */
-      .rendered h2 {
-        font-size: 1.4em;
-        font-weight: 600;
-        margin: 0 0 12px;
-        padding-bottom: 6px;
-        border-bottom: 1px solid #d1d9e0;
-      }
-      .rendered ul {
-        padding-left: 1.6em;
-        margin: 0 0 12px;
-      }
-      .rendered li:has(> input[type="checkbox"]) {
-        list-style: none;
-        margin: 12px 0 0 -1.4em;
-      }
-      .rendered li > input[type="checkbox"] {
-        margin: 0 6px 0 0;
-        vertical-align: -1px;
-      }
-      .rendered li ul {
-        margin: 2px 0 0;
-        padding-left: 2.2em;
-        list-style: disc;
-      }
-      .rendered li li {
-        margin-top: 2px;
+      footer {
+        margin-top: 96px;
+        padding: 32px 0 48px;
+        border-top: 1px solid #eeebe3;
+        color: #8a8f8b;
         font-size: 13px;
       }
-      .rendered code {
-        font:
-          12px ui-monospace,
-          SFMono-Regular,
-          Menlo,
-          monospace;
-        background: rgba(129, 139, 152, 0.15);
-        padding: 1px 5px;
-        border-radius: 5px;
+
+      /* a fixed element, for trying comments on things that don't scroll */
+      .chat {
+        position: fixed;
+        left: 24px;
+        bottom: 24px;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        border: 0;
+        border-radius: 999px;
+        background: #0f766e;
+        color: #fff;
+        font-weight: 600;
+        font-size: 14px;
+        box-shadow: 0 8px 24px rgba(15, 118, 110, 0.3);
       }
-      .rendered pre {
-        background: #f6f8fa;
-        padding: 8px;
-        border-radius: 6px;
-        overflow: auto;
-      }
-      .rendered pre code {
-        background: none;
-        padding: 0;
-      }
-      .rendered a {
-        color: #0969da;
-        text-decoration: none;
-      }
-      .rendered img {
-        max-width: 100%;
-        max-height: 220px;
-        border: 1px solid #d1d9e0;
-        border-radius: 6px;
-      }
-      .rendered blockquote {
-        margin: 0;
-        padding: 0 0.8em;
-        color: #59636e;
-        border-left: 3px solid #d1d9e0;
-      }
-      .rendered details summary {
-        cursor: pointer;
-        color: #59636e;
+
+      @media (max-width: 760px) {
+        .links,
+        .sign-in {
+          display: none;
+        }
+        .wrap {
+          padding: 0 20px;
+        }
+        .hero {
+          padding-top: 40px;
+        }
+        h1 {
+          font-size: 36px;
+          letter-spacing: -1px;
+        }
+        .plans {
+          grid-template-columns: 1fr;
+        }
+        .logos div {
+          gap: 22px;
+          font-size: 16px;
+          flex-wrap: wrap;
+        }
+        .chat span {
+          display: none;
+        }
       }
     </style>
-    <!-- `pnpm dev` rebuilds on save: reload then -->
-    <script>
-      new EventSource("/esbuild").addEventListener("change", () =>
-        location.reload(),
-      );
-    </script>
     <!-- the fake server, then the widget (rebuilt by `pnpm dev`) pointed at it -->
     <script src="fake-api.js"></script>
     <script
       src="widget.js"
       data-api="https://fake-api.test/api/reviewapp-annotate"
     ></script>
+    <script src="toolbar.js" defer></script>
   </head>
-  <body class="with-preview">
-    <!-- the review comment the server would write, live (pr-comment.ts) -->
-    <aside id="pr-comment" data-view="rendered">
-      <div class="bar">
-        <b>reviewapp-annotate</b><span class="bot">bot</span> on acme/web#128
-        <span class="tabs">
-          <button data-view="rendered">Preview</button>
-          <button data-view="source">Markdown</button>
-        </span>
-      </div>
-      <div class="rendered"></div>
-      <div class="source">
-        <textarea spellcheck="false"></textarea>
-        <div class="edit-bar">
-          <span
-            >Edit it as an agent would: tick a box, or add
-            <code> - ↩ **Name** · reply</code> under a thread.</span
-          >
-          <button class="save">Save on GitHub</button>
+  <body>
+    <nav class="site-nav">
+      <div class="wrap">
+        <a class="brand"><i></i>Lumen</a>
+        <div class="links">
+          <a>Product</a><a>Customers</a><a class="on">Pricing</a><a>Docs</a>
         </div>
+        <span class="sp"></span>
+        <a class="sign-in">Sign in</a>
+        <a class="cta">Get started</a>
       </div>
-      <div class="updated"></div>
-    </aside>
-    <header>
-      <b>Lumen</b><span>Product</span><span>Pricing</span><span>Docs</span>
-      <span class="sp"></span>
-      <button onclick="document.body.classList.toggle('with-preview')">
-        PR comment
-      </button>
-      <button onclick="resetPlayground()">Reset threads</button>
-      <button id="sign-in" onclick="togglePlaygroundSignIn()">Sign out</button>
-      <script>
-        document.getElementById("sign-in").textContent = playgroundSignedIn()
-          ? "Sign out"
-          : "Sign in";
-      </script>
-    </header>
-    <!-- a fixed element, for trying comments on things that don't scroll -->
-    <button id="help" class="help">Need help?</button>
-    <main>
-      <h1>Simple pricing for growing teams</h1>
-      <p>Start free. Upgrade when your team does.</p>
-      <div class="plans">
+    </nav>
+
+    <main class="wrap">
+      <section class="hero">
+        <span class="eyebrow">New: annual plans save 20%</span>
+        <h1>Simple pricing for growing teams</h1>
+        <p class="lede">Start free. Upgrade when your team does.</p>
+        <div class="billing">
+          <span class="on">Monthly</span><span>Annual</span>
+        </div>
+      </section>
+
+      <section class="plans">
         <div class="plan" id="plan-starter">
           <h3>Starter</h3>
-          <p>$0 / month</p>
-          <button>Get started</button>
+          <p class="for">For side projects</p>
+          <div class="price">$0 <span>/ month</span></div>
+          <a class="btn">Get started</a>
+          <ul>
+            <li>3 projects</li>
+            <li>Community support</li>
+            <li>Basic analytics</li>
+          </ul>
         </div>
-        <div class="plan" id="plan-team">
+        <div class="plan pop" id="plan-team">
+          <span class="tag">Most popular</span>
           <h3>Team</h3>
-          <p>$24 / seat / month</p>
-          <button>Start your 14-day free trial</button>
+          <p class="for">For teams shipping every week</p>
+          <div class="price">$24 <span>/ seat / month</span></div>
+          <a class="btn">Start your 14-day free trial</a>
+          <ul>
+            <li>Unlimited projects</li>
+            <li>Priority support</li>
+            <li>Advanced analytics</li>
+            <li>Roles and permissions</li>
+          </ul>
         </div>
         <div class="plan" id="plan-enterprise">
           <h3>Enterprise</h3>
-          <p>Custom</p>
-          <button>Contact sales</button>
+          <p class="for">For large organizations</p>
+          <div class="price">Custom</div>
+          <a class="btn">Contact sales</a>
+          <ul>
+            <li>SSO and audit logs</li>
+            <li>Dedicated manager</li>
+            <li>99.99% uptime SLA</li>
+          </ul>
         </div>
-      </div>
-      <div class="note">
-        The widget's playground: comments, replies, resolving, editing and
-        moving pins all work, against a fake server in this page
-        (<code>fake-api.js</code>), saved in localStorage. No GitHub, no
-        sign-in.
-      </div>
-      <div class="tall">Scroll down: pins stay on their elements.</div>
+      </section>
+
+      <section class="logos">
+        Trusted by 4,000+ teams
+        <div>
+          <span>Northwind</span><span>Halcyon</span><span>Arbor</span
+          ><span>Quill&amp;Co</span><span>Meridian</span>
+        </div>
+      </section>
+
+      <section class="faq">
+        <h2>Questions</h2>
+        <details open>
+          <summary>Can I change plans later?</summary>
+          <p>
+            Any time. Upgrades apply right away; downgrades at the end of your
+            billing period.
+          </p>
+        </details>
+        <details>
+          <summary>What counts as a seat?</summary>
+          <p>Anyone who can sign in to your workspace. Guests are free.</p>
+        </details>
+        <details>
+          <summary>Do you offer discounts for nonprofits?</summary>
+          <p>Yes: 50% off any paid plan. Get in touch with sales.</p>
+        </details>
+      </section>
     </main>
-    <script src="pr-comment.js"></script>
+
+    <footer>
+      <div class="wrap">© 2026 Lumen, Inc. · Privacy · Terms · Status</div>
+    </footer>
+
+    <button class="chat" id="help">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.4"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" />
+      </svg>
+      <span>Questions? Chat with us</span>
+    </button>
   </body>
 </html>

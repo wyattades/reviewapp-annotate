@@ -1,6 +1,6 @@
 # Review-App Annotate
 
-![A review app with a comment thread open, and the PR comment it keeps on GitHub](https://raw.githubusercontent.com/wyattades/reviewapp-annotate/main/docs/hero.png)
+![A review app with a comment thread open, beside the PR on GitHub with the review comment it keeps](https://raw.githubusercontent.com/wyattades/reviewapp-annotate/main/docs/hero.png)
 
 Leave comments on review apps (preview deployments), like Vercel's preview comments, but on any host. Select a region of the page, write a comment, and it's saved to a single comment on the pull request along with the page URL, CSS selector, a screenshot and (optionally) the console log. Teammates see each other's pins and can reply and resolve.
 
@@ -9,6 +9,21 @@ Leave comments on review apps (preview deployments), like Vercel's preview comme
 - No hosting-provider API keys: the PR is found by reading the preview link in the provider's bot comment.
 - Only your signed-in users can comment. You provide the auth.
 - Host it anywhere: a plain `(Request) => Promise<Response>` handler can run on Next.js, Hono, Cloudflare Workers, etc.
+
+## Using it
+
+<img align="right" width="260" alt="The widget on a phone: the list button beside the comment button, with the comments list open" src="https://raw.githubusercontent.com/wyattades/reviewapp-annotate/main/docs/mobile.png">
+
+The widget is a round comment button in the corner of the page; its badge counts the PR's comments. Drag it anywhere.
+
+- **Comment:** click the button, then drag over part of the page (or click to drop a pin) and write. The region's screenshot goes with it.
+- **See everyone's comments:** while adding a comment, a list button shows beside the comment button, with the count. It opens every thread on the PR, across pages.
+- **Reply and resolve:** threads are pins on the page; open one to reply, resolve it, or drag the pin to move it.
+- Signed out, the badge is a lock: the button signs you in.
+
+It works the same on phones, with taps.
+
+<br clear="right">
 
 ## Setup
 
@@ -69,7 +84,7 @@ Or load it from a CDN, pinned to a version. A CDN can't know where your server i
 
 ```html
 <script
-  src="https://cdn.jsdelivr.net/npm/reviewapp-annotate@0.5.0/dist/widget.js"
+  src="https://cdn.jsdelivr.net/npm/reviewapp-annotate@0.6.0/dist/widget.js"
   data-api="https://your-app.example.com/api/reviewapp-annotate"
 ></script>
 ```
@@ -265,13 +280,16 @@ Keep the hidden `<!-- review-item:… -->` and `<!-- reply:… -->` markers as t
 
 ```sh
 pnpm install
-pnpm dev         # the widget's playground at http://localhost:4321, rebuilt on save
+pnpm dev           # the widget's playground at http://localhost:4321, rebuilt on save
 pnpm typecheck
 pnpm test
 pnpm build
+pnpm screenshots   # the README's images, from the playground
 ```
 
-The playground (`playground/`) runs the widget against a fake server in the page, so you can try commenting, replying, resolving and moving pins without GitHub or a deployed review app. Beside it is the PR comment the server would write, built with its own formatter and updated as you go; tick a box there to resolve a thread, as on GitHub.
+The playground (`playground/`) is a review app with the widget (`index.html`) and the PR it comments on, as GitHub shows it (`pr.html`). The widget runs against a fake server in the page, so you can try commenting, replying, resolving and moving pins without GitHub or a deployed review app. The PR page shows the comment the server would write, built with its own formatter and updated as you go: tick a box to resolve a thread, or edit the comment (its `···` menu) as an agent would. A toolbar at the bottom switches pages, resets the threads, and signs in or out.
+
+`pnpm screenshots` drives both pages in headless Chrome (the installed Chrome, or `pnpm exec playwright install chromium`) and writes `docs/hero.png` and `docs/mobile.png`: change the playground, then run it again.
 
 ## License
 

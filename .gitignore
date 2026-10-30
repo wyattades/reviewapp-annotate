@@ -5,5 +5,5 @@ src/server/widget-source.generated.ts
 .DS_Store
 playground/widget.js
 playground/widget.js.map
-playground/pr-comment.js
-playground/pr-comment.js.map
+playground/pr.js
+playground/pr.js.map

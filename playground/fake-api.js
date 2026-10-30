@@ -1,10 +1,23 @@
 // A fake reviewapp-annotate server, in the page: every route the widget calls,
-// kept in localStorage so a reload keeps your threads. "Reset" in the page
-// starts over. Load it before widget.js.
+// kept in localStorage so a reload keeps your threads, and so the PR page
+// (pr.html) sees the same ones. "Reset threads" in the toolbar starts over.
+// Load it before widget.js.
 (() => {
   const API = "https://fake-api.test/api/reviewapp-annotate";
   const KEY = "playground-threads";
-  const me = { author: "You", authorId: "me", avatar: null };
+  /** who's signed in: "You", unless `playgroundUser` (in localStorage) says otherwise, as the screenshots do */
+  const USER_KEY = "playground-user";
+  const me = () => {
+    try {
+      const user = JSON.parse(localStorage.getItem(USER_KEY));
+      if (user?.author) return { avatar: null, ...user };
+    } catch {
+      // not set, or garbled: the default
+    }
+    return { author: "You", authorId: "me", avatar: null };
+  };
+  /** the review app's page, which the threads are on (pr.html loads this too) */
+  const appUrl = new URL("/", location.href).href;
   const ago = (minutes) =>
     new Date(Date.now() - minutes * 60_000).toISOString();
   const id = () => Math.random().toString(36).slice(2, 10);
@@ -12,42 +25,44 @@
   const seed = () => [
     {
       id: "t1",
+      author: "Kai",
+      authorId: "kai",
+      avatar: null,
+      text: "Logo is a little blurry on retina",
+      pageUrl: appUrl,
+      selector: "nav > div > a.brand",
+      rect: { x: 0, y: 0, w: 1, h: 1 },
+      pageRect: { x: 232, y: 21, w: 92, h: 22 },
+      viewport: { width: 1440, height: 900 },
+      createdAt: ago(130),
+      resolved: true,
+      imageUrls: [],
+      replies: [],
+    },
+    {
+      id: "t2",
       author: "Grace",
       authorId: "grace",
       avatar: null,
-      text: "Can this heading be shorter? It wraps on mobile.",
-      pageUrl: location.href,
-      selector: "main > h1",
-      rect: { x: 0, y: 0, w: 0.6, h: 1 },
-      pageRect: { x: 0, y: 0, w: 0, h: 0 },
-      createdAt: ago(90),
+      text: "Can “Most popular” use the brand green? It blends into the card border.",
+      pageUrl: appUrl,
+      selector: "#plan-team > span.tag",
+      rect: { x: 0, y: 0, w: 1, h: 1 },
+      pageRect: { x: 832, y: 434, w: 100, h: 24 },
+      viewport: { width: 1440, height: 900 },
+      createdAt: ago(25),
       resolved: false,
       imageUrls: [],
       replies: [
         {
           id: "r1",
-          author: "You",
-          authorId: "me",
+          author: "Ada",
+          authorId: "ada",
           avatar: null,
-          text: "Sure, on it",
-          createdAt: ago(60),
+          text: "On it, pushing now.",
+          createdAt: ago(12),
         },
       ],
-    },
-    {
-      id: "t2",
-      author: "Kai",
-      authorId: "kai",
-      avatar: null,
-      text: "The trial button colour is off",
-      pageUrl: location.href,
-      selector: "#plan-team > button",
-      rect: { x: 0, y: 0, w: 1, h: 1 },
-      pageRect: { x: 0, y: 0, w: 0, h: 0 },
-      createdAt: ago(180),
-      resolved: false,
-      imageUrls: [],
-      replies: [],
     },
   ];
 
@@ -63,14 +78,22 @@
   let items = load();
   const save = () => {
     localStorage.setItem(KEY, JSON.stringify(items));
-    // the PR comment preview (pr-comment.ts) redraws
+    // the PR page (pr.ts) redraws
     window.dispatchEvent(new Event("playground-change"));
   };
+  // the other page changed them (a box ticked on the PR page, a comment in the app)
+  window.addEventListener("storage", (event) => {
+    if (event.key !== KEY && event.key !== null) return;
+    items = load();
+    window.dispatchEvent(new Event("playground-change"));
+    // the widget reloads when the page becomes visible: have it look now
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
   window.resetPlayground = () => {
     localStorage.removeItem(KEY);
     location.reload();
   };
-  /** For the PR comment preview: the threads, and ticking one off as GitHub's checkbox would. */
+  /** For the PR page: the threads, and ticking one off as GitHub's checkbox would. */
   window.playground = {
     threads: () => items,
     setResolved: (threadId, resolved) => {
@@ -81,7 +104,7 @@
       // the widget reloads when the page becomes visible: have it look now, not at its next poll
       document.dispatchEvent(new Event("visibilitychange"));
     },
-    /** The comment as edited on GitHub (parsed by the preview): what's ticked, and every reply. */
+    /** The comment as edited on GitHub (parsed by the PR page): what's ticked, and every reply. */
     applyEdit: (parsed) => {
       for (const edited of parsed) {
         const thread = items.find((i) => i.id === edited.id);
@@ -147,19 +170,25 @@
     }
     if (method === "GET") {
       return ok({
-        user: me.author,
-        userId: me.authorId,
+        user: me().author,
+        userId: me().authorId,
         image: null,
-        repo: "acme/web",
+        repo: "lumen/web",
         prNumber: 128,
-        commentUrl: "https://github.com/acme/web/pull/128",
+        // the PR page here stands in for GitHub
+        commentUrl: new URL("/pr.html#review-comment", location.href).href,
         items,
       });
     }
     if (method === "POST" && p.has("reply_to")) {
       const parent = items.find((i) => i.id === p.get("reply_to"));
       if (!parent) return notFound();
-      parent.replies.push({ id: id(), ...me, text: body.text, createdAt: now });
+      parent.replies.push({
+        id: id(),
+        ...me(),
+        text: body.text,
+        createdAt: now,
+      });
     } else if (method === "POST") {
       const {
         text,
@@ -175,7 +204,7 @@
       // the real server commits these to the repo; here they're kept as they came (data URLs)
       const created = {
         id: id(),
-        ...me,
+        ...me(),
         text,
         pageUrl,
         selector,
@@ -185,7 +214,7 @@
         resolved: false,
         replies: [],
         imageUrls: screenshots,
-        // only in the PR comment, which the preview shows
+        // only in the PR comment, which the PR page shows
         elementText,
         viewport,
         consoleEntries,
@@ -193,7 +222,7 @@
       items.push(created);
       save();
       return ok({
-        url: "https://github.com/acme/web/pull/128",
+        url: new URL("/pr.html#review-comment", location.href).href,
         itemId: created.id,
       });
     } else if (method === "PATCH") {
