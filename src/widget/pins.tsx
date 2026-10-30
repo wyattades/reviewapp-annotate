@@ -1,4 +1,4 @@
-import { useRef, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { Avatar } from "./avatar";
 import { hasRegion, locateItem, pageKey } from "./geometry";
 import { CheckCircleIcon } from "./icons";
@@ -78,6 +78,28 @@ export function Pins({
   const [drag, setDrag] = useState<Drag | null>(null);
   /** a drag ends in a click on the pin: that click isn't one */
   const justDragged = useRef(false);
+  /** The pointer that's pressing a pin, until it's released: a move after that isn't a drag. */
+  const pressed = useRef<{ id: number; type: string } | null>(null);
+  const stopDrag = () => {
+    pressed.current = null;
+    setDrag(null);
+  };
+
+  // however the press ends (even when the pin never hears it), the drag is over
+  const dragging = drag !== null;
+  useEffect(() => {
+    if (!dragging) return;
+    const end = stopDrag;
+    // bubbling, so the pin's own release (which saves the move) comes first
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end, true);
+    window.addEventListener("blur", end);
+    return () => {
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end, true);
+      window.removeEventListener("blur", end);
+    };
+  }, [dragging]);
 
   const here = pageKey(location.href);
   const placed = items
@@ -99,7 +121,7 @@ export function Pins({
       justDragged.current = true;
       onMove(item, rect);
     }
-    setDrag(null);
+    stopDrag();
   };
 
   return (
@@ -119,7 +141,7 @@ export function Pins({
         <button
           key={item.id}
           type="button"
-          class={`pin${item.resolved ? " resolved" : ""}${item.pending ? " pending" : ""}${item.id === openId ? " open" : ""}${drag?.id === item.id && drag.moved ? " dragging" : ""}`}
+          class={`pin${item.resolved ? " resolved" : ""}${item.pending ? " pending" : ""}${item.id === openId ? " open" : ""}${drag?.id === item.id && drag.moved ? " dragging" : ""}${item.id === hoverId ? " hovered" : ""}`}
           style={{ left: rect.x, top: rect.y - PIN_HEIGHT }}
           aria-label={`Thread by ${item.author}, ${item.replies.length + 1} comments`}
           title={item.pending ? undefined : "Drag to move"}
@@ -128,6 +150,7 @@ export function Pins({
             event.stopPropagation();
             if (item.pending || event.button !== 0) return;
             event.currentTarget.setPointerCapture(event.pointerId);
+            pressed.current = { id: event.pointerId, type: event.pointerType };
             const { clientX: x, clientY: y } = event;
             setDrag({
               id: item.id,
@@ -139,16 +162,37 @@ export function Pins({
             });
           }}
           onPointerMove={(event) => {
-            if (drag?.id !== item.id) return;
-            const dx = event.clientX - drag.startX;
-            const dy = event.clientY - drag.startY;
-            const isDrag = drag.moved || Math.hypot(dx, dy) >= DRAG_THRESHOLD;
-            setDrag({ ...drag, dx, dy, moved: isDrag });
+            if (pressed.current?.id !== event.pointerId) return;
+            setDrag((current) => {
+              if (current?.id !== item.id) return current;
+              const dx = event.clientX - current.startX;
+              const dy = event.clientY - current.startY;
+              const isDrag =
+                current.moved || Math.hypot(dx, dy) >= DRAG_THRESHOLD;
+              return { ...current, dx, dy, moved: isDrag };
+            });
           }}
           onPointerUp={() => endDrag(item, rect)}
-          // the capture is lost (e.g. the window lost focus): leave it where it was
-          onLostPointerCapture={() => setDrag(null)}
-          onPointerEnter={() => onHover(item.id)}
+          onPointerCancel={stopDrag}
+          // the browser's own drag-and-drop (an avatar image) or a long-press menu would cancel the touch
+          onDragStart={(event) => event.preventDefault()}
+          onContextMenu={(event) => event.preventDefault()}
+          // the capture is lost (e.g. the window lost focus): leave it where it was.
+          // Not for a child: touch captures to the child under the finger first, and
+          // moving the capture to the pin fires (and bubbles) this for that child.
+          // Firefox's touch simulation also reports a phantom "mouse" pointer with
+          // the finger's id: its capture changes aren't the finger's.
+          onLostPointerCapture={(event) => {
+            if (
+              event.target === event.currentTarget &&
+              event.pointerType === pressed.current?.type
+            )
+              stopDrag();
+          }}
+          // touch has no hover: a tap would leave the pin and its preview stuck "hovered"
+          onPointerEnter={(event) => {
+            if (event.pointerType !== "touch") onHover(item.id);
+          }}
           onPointerLeave={onUnhover}
           onClick={() => {
             if (justDragged.current) {

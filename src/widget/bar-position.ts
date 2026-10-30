@@ -48,6 +48,8 @@ function save(pos: BarPosition) {
  */
 export function useBarPosition() {
   const [pos, setPos] = useState(load);
+  /** Held down: a class, not `:active`, which touch can leave stuck on after a drag. */
+  const [grabbing, setGrabbing] = useState(false);
 
   // keep it on screen when the window shrinks
   useEffect(() => {
@@ -62,9 +64,11 @@ export function useBarPosition() {
       const start = { x: event.clientX, y: event.clientY };
       const bar = event.currentTarget as HTMLElement;
       const pointerId = event.pointerId;
+      const type = event.pointerType;
       const from = pos;
       let last = from;
       let moving = false;
+      setGrabbing(true);
 
       // on window, not the bar: a fast drag leaves the bar before the first move
       const onMove = (move: PointerEvent) => {
@@ -88,7 +92,8 @@ export function useBarPosition() {
         window.removeEventListener("pointerup", onEnd);
         window.removeEventListener("pointercancel", onEnd);
         window.removeEventListener("blur", onEnd);
-        bar.removeEventListener("lostpointercapture", onEnd);
+        bar.removeEventListener("lostpointercapture", onLost);
+        setGrabbing(false);
         if (!moving) return;
         save(last);
 
@@ -104,13 +109,20 @@ export function useBarPosition() {
       window.addEventListener("pointerup", onEnd);
       window.addEventListener("pointercancel", onEnd);
       window.addEventListener("blur", onEnd);
-      bar.addEventListener("lostpointercapture", onEnd);
+      // Touch already captures the pointer to the child under the finger, so
+      // capturing it to the bar fires this (and bubbles) for that child: not the end.
+      // (Firefox's touch simulation also reports a phantom "mouse" pointer with the finger's id.)
+      const onLost = (lost: Event) => {
+        if (lost.target === bar && (lost as PointerEvent).pointerType === type)
+          onEnd();
+      };
+      bar.addEventListener("lostpointercapture", onLost);
     },
     // the browser's own drag-and-drop would swallow the pointer events
     onDragStart: (event: DragEvent) => event.preventDefault(),
   };
 
-  return { pos, handlers };
+  return { pos, grabbing, handlers };
 }
 
 /**

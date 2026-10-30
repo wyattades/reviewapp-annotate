@@ -49,9 +49,10 @@ export const STYLES = `
     white-space: nowrap; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; background: var(--ra-pill);
     color: var(--ra-pill-ink); cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
     box-shadow: var(--ra-shadow); }
-  .bar:active { cursor: grabbing; }
+  .bar.grabbing { cursor: grabbing; }
   .seg { display: flex; align-items: center; gap: 6px; border: 0; background: none; color: inherit; cursor: pointer; }
-  .seg:hover:not(:disabled) { background: var(--ra-pill-hover); }
+  /* touch leaves :hover on whatever was last touched: only for pointers that really hover */
+  @media (hover: hover) { .seg:hover:not(:disabled) { background: var(--ra-pill-hover); } }
   .seg:disabled { opacity: .6; cursor: default; }
   .seg.icon { padding: 0 9px 0 12px; }
   .seg.icon.active { background: var(--ra-accent); color: var(--ra-accent-ink); }
@@ -71,7 +72,7 @@ export const STYLES = `
   /* something didn't save: retry or dismiss it here */
   .seg.problem { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; padding: 0 14px 0 10px;
     background: var(--ra-danger); color: #fff; line-height: 1.15; }
-  .seg.problem:hover { background: color-mix(in srgb, var(--ra-danger) 85%, black); }
+  @media (hover: hover) { .seg.problem:hover { background: color-mix(in srgb, var(--ra-danger) 85%, black); } }
   .seg.problem .sub { opacity: .85; }
 
   /* --- selecting a region --- */
@@ -138,22 +139,24 @@ export const STYLES = `
 
   /* --- pins: a count (a sticky note), then up to three avatars behind it, each half hidden by the one before --- */
   .pin { position: fixed; z-index: ${Z + 3}; display: flex; align-items: center; padding: 0; border: 0;
-    background: none; cursor: pointer; touch-action: none; }
+    background: none; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none;
+    -webkit-touch-callout: none; }
+  .pin img { -webkit-user-drag: none; pointer-events: none; }
   .pin.dragging { cursor: grabbing; z-index: ${Z + 4}; }
   .pin.dragging .count { transform: scale(1.12); box-shadow: 0 6px 16px rgba(28,25,23,.35); }
   .pin .count { position: relative; z-index: 10; min-width: ${PIN_HEIGHT}px; height: ${PIN_HEIGHT}px; padding: 0 8px; display: flex;
     align-items: center; justify-content: center; border-radius: 8px 8px 8px 2px; border: 2px solid #fff;
     background: var(--ra-sticky); color: var(--ra-sticky-ink); font-weight: 700;
     box-shadow: 0 2px 8px rgba(28,25,23,.3); transform-origin: bottom left; transition: background .12s, transform .12s; }
-  .pin:hover .count { background: var(--ra-sticky-hover); transform: scale(1.12); }
+  .pin.hovered .count { background: var(--ra-sticky-hover); transform: scale(1.12); }
   .pin .stack { display: flex; margin-left: -12px; }
   .pin .stack .avatar { position: relative; border: 2px solid #fff; margin-left: -12px; box-shadow: 0 1px 4px rgba(28,25,23,.3); }
   .pin .stack .avatar:first-child { margin-left: 0; }
   .pin.open .count { background: var(--ra-pill); color: var(--ra-pill-ink); }
-  .pin.open:hover .count { background: var(--ra-pill-hover); }
+  .pin.open.hovered .count { background: var(--ra-pill-hover); }
   .pin.resolved { opacity: .75; }
   .pin.resolved .count { background: var(--ra-resolved); color: var(--ra-resolved-ink); }
-  .pin.resolved:hover .count { background: var(--ra-resolved); filter: brightness(1.12); }
+  .pin.resolved.hovered .count { background: var(--ra-resolved); filter: brightness(1.12); }
   .pin.pending { opacity: .6; }
 
   /* --- the hover preview --- */
