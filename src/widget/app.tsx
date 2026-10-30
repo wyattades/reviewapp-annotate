@@ -57,6 +57,7 @@ export function App({ host }: { host: HTMLElement }) {
   const {
     pos,
     grabbing,
+    dragging,
     handlers: dragHandlers,
   } = useBarPosition(() => showList());
 
@@ -528,7 +529,7 @@ export function App({ host }: { host: HTMLElement }) {
       )}
 
       <div
-        class={`bar${grabbing ? " grabbing" : ""}`}
+        class={`bar${grabbing ? " grabbing" : ""}${dragging ? " dragging" : ""}`}
         style={{ right: pos.right, bottom: pos.bottom }}
         {...dragHandlers}
       >

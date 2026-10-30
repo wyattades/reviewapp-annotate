@@ -53,6 +53,8 @@ export function useBarPosition(onLongPress: () => void) {
   const [pos, setPos] = useState(load);
   /** Held down: a class, not `:active`, which touch can leave stuck on after a drag. */
   const [grabbing, setGrabbing] = useState(false);
+  /** Moving: the bar lifts off the page (see `.bar.dragging`). */
+  const [dragging, setDragging] = useState(false);
 
   // keep it on screen when the window shrinks
   useEffect(() => {
@@ -94,6 +96,7 @@ export function useBarPosition(onLongPress: () => void) {
           }
         }
         moving = true;
+        setDragging(true);
         last = clamp({ right: from.right - dx, bottom: from.bottom - dy });
         setPos(last);
       };
@@ -104,6 +107,7 @@ export function useBarPosition(onLongPress: () => void) {
         window.removeEventListener("blur", onEnd);
         bar.removeEventListener("lostpointercapture", onLost);
         setGrabbing(false);
+        setDragging(false);
         clearTimeout(longPress);
         if (!moving && !longPressed) return;
         if (moving) save(last);
@@ -135,7 +139,7 @@ export function useBarPosition(onLongPress: () => void) {
     onContextMenu: (event: MouseEvent) => event.preventDefault(),
   };
 
-  return { pos, grabbing, handlers };
+  return { pos, grabbing, dragging, handlers };
 }
 
 /**
