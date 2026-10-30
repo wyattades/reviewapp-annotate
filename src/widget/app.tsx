@@ -478,6 +478,26 @@ export function App({ host }: { host: HTMLElement }) {
   const shown = [...items, ...pending];
   const count = shown.filter((i) => !i.pending).length;
   const selecting = mode.kind === "selecting";
+  /** the list button shows while adding a comment or reading the list */
+  const listButton = context && (selecting || panelOpen) ? context : null;
+  const countBadge = token && context && (
+    <span
+      class={`count${!savingCount && count > 9 ? " wide" : ""}`}
+      aria-hidden="true"
+    >
+      {savingCount > 0 ? (
+        <span class="spinner" />
+      ) : count > 0 ? (
+        count > 99 ? (
+          "99+"
+        ) : (
+          count
+        )
+      ) : (
+        <PlusIcon />
+      )}
+    </span>
+  );
   const barLeft = innerWidth - pos.right - ROUND_SIZE;
   const onLeft = barLeft + ROUND_SIZE / 2 < innerWidth / 2;
   const open = shown.find((i) => i.id === openId);
@@ -557,21 +577,24 @@ export function App({ host }: { host: HTMLElement }) {
         {...dragHandlers}
       >
         {/* while adding a comment (or reading the list): the way to the list, beside the round button */}
-        {context && (selecting || panelOpen) && (
+        {listButton && (
           <button
             type="button"
-            class={`seg side${panelOpen ? " active" : ""}`}
+            class={`seg round side${panelOpen ? " active" : ""}`}
             aria-pressed={panelOpen}
-            title={panelOpen ? "Hide the comments" : "Show all comments"}
+            aria-label={`${panelOpen ? "Hide" : "Show"} the ${count} ${count === 1 ? "comment" : "comments"} on PR #${listButton.prNumber}`}
             onClick={toggleList}
           >
             <ListIcon />
-            Comments
+            <span class="tip" aria-hidden="true">
+              {panelOpen ? "Hide the comments" : "All comments"}
+            </span>
+            {countBadge}
           </button>
         )}
         <button
           type="button"
-          class={`seg round${selecting ? " active" : ""}`}
+          class={`seg round main${selecting ? " active" : ""}`}
           aria-label={
             !token
               ? "Sign in to comment"
@@ -605,24 +628,8 @@ export function App({ host }: { host: HTMLElement }) {
               <LockIcon />
             </span>
           )}
-          {token && context && (
-            <span
-              class={`count${!savingCount && count > 9 ? " wide" : ""}`}
-              aria-hidden="true"
-            >
-              {savingCount > 0 ? (
-                <span class="spinner" />
-              ) : count > 0 ? (
-                count > 99 ? (
-                  "99+"
-                ) : (
-                  count
-                )
-              ) : (
-                <PlusIcon />
-              )}
-            </span>
-          )}
+          {/* the count rides on the list button while it's there */}
+          {!listButton && countBadge}
         </button>
         {problem && (
           <button

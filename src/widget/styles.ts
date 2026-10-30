@@ -51,7 +51,7 @@ export const STYLES = `
     -webkit-user-select: none; -webkit-touch-callout: none; }
   .bar.grabbing { cursor: grabbing; }
   /* on the left half of the screen: the round button first, the rest to its right */
-  .bar.on-left .seg.round { order: -1; }
+  .bar.on-left .seg.main { order: -1; }
   .bar.on-left .seg.round .tip { right: auto; left: 0; }
   .bar.on-left .seg.side { animation-name: ra-pop-right; }
   @keyframes ra-pop-right { from { opacity: 0; transform: translateX(-8px); } }
@@ -72,10 +72,8 @@ export const STYLES = `
   .seg.round .count { position: absolute; top: -5px; right: -5px; min-width: 20px; height: 20px; padding: 0;
     display: flex; align-items: center; justify-content: center; border-radius: 999px; border: 1.5px solid var(--ra-pill);
     background: var(--ra-pill-ink); color: var(--ra-pill); font-size: 11px; font-weight: 700; line-height: 1; }
-  /* the way to the list while adding a comment: a small pill beside the round button */
-  .seg.side { align-self: center; height: 32px; padding: 0 12px 0 10px; font-weight: 600; animation: ra-pop .12s ease-out; }
-  .seg.side svg { width: 14px; height: 14px; }
-  .seg.side.active, .seg.side.active:hover { background: var(--ra-accent); color: var(--ra-accent-ink); }
+  /* the list button, beside the round one while adding a comment or reading the list */
+  .seg.side { animation: ra-pop .12s ease-out; }
   @keyframes ra-pop { from { opacity: 0; transform: translateX(8px); } }
   .seg.round .count.wide { padding: 0 5px; }
   .seg.round .count svg { width: 10px; height: 10px; }
