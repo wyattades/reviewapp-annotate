@@ -38,6 +38,13 @@ export const PlusIcon = () => (
   </svg>
 );
 
+/** Signing in opens a popup: an arrow out. */
+export const ArrowUpRightIcon = () => (
+  <svg viewBox="0 0 24 24" width="10" height="10" {...stroke} stroke-width={3}>
+    <path d="M7 17 17 7M8 7h9v9" />
+  </svg>
+);
+
 export const MoreIcon = () => (
   <svg
     viewBox="0 0 24 24"

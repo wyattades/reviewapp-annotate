@@ -4,7 +4,7 @@ import { popoverStyle, useBarPosition } from "./bar-position";
 import { Composer } from "./composer";
 import { getConsoleEntries } from "./console-capture";
 import { describeTarget, findElement, locateItem, pageKey } from "./geometry";
-import { CommentIcon, PlusIcon } from "./icons";
+import { ArrowUpRightIcon, CommentIcon, PlusIcon } from "./icons";
 import { Panel } from "./panel";
 import { Pins } from "./pins";
 import { SelectOverlay } from "./select-overlay";
@@ -565,6 +565,11 @@ export function App({ host }: { host: HTMLElement }) {
           }}
         >
           <CommentIcon />
+          {!token && (
+            <span class="count" aria-hidden="true">
+              <ArrowUpRightIcon />
+            </span>
+          )}
           {token && context && (
             <span class="count" aria-hidden="true">
               {savingCount > 0 ? (
