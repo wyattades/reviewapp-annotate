@@ -4,11 +4,11 @@ import { popoverStyle, useBarPosition } from "./bar-position";
 import { Composer } from "./composer";
 import { getConsoleEntries } from "./console-capture";
 import { describeTarget, findElement, locateItem, pageKey } from "./geometry";
-import { ArrowUpRightIcon, CommentIcon, ListIcon, PlusIcon } from "./icons";
+import { CommentIcon, ListIcon, LockIcon, PlusIcon } from "./icons";
 import { Panel } from "./panel";
 import { Pins } from "./pins";
 import { SelectOverlay } from "./select-overlay";
-import { PANEL_WIDTH, STYLES } from "./styles";
+import { PANEL_WIDTH, ROUND_SIZE, STYLES } from "./styles";
 import { Thread, type ThreadActions } from "./thread";
 import type { Context, Draft, Rect, ShownItem, Target } from "./types";
 
@@ -541,7 +541,10 @@ export function App({ host }: { host: HTMLElement }) {
       )}
 
       <div
-        class={`bar${grabbing ? " grabbing" : ""}${dragging ? " dragging" : ""}`}
+        class={`bar${grabbing ? " grabbing" : ""}${dragging ? " dragging" : ""}${
+          // too close to the top for the tooltip above it
+          innerHeight - pos.bottom - ROUND_SIZE < 48 ? " tip-below" : ""
+        }`}
         style={{ right: pos.right, bottom: pos.bottom }}
         {...dragHandlers}
       >
@@ -561,13 +564,6 @@ export function App({ host }: { host: HTMLElement }) {
         <button
           type="button"
           class={`seg round${selecting ? " active" : ""}`}
-          title={
-            !token
-              ? "Sign in to comment"
-              : selecting
-                ? "Cancel the comment"
-                : "Add a comment"
-          }
           aria-label={
             !token
               ? "Sign in to comment"
@@ -588,9 +584,17 @@ export function App({ host }: { host: HTMLElement }) {
           }}
         >
           <CommentIcon />
+          {/* on hover; not `title`, which shows late and looks out of place */}
+          <span class="tip" aria-hidden="true">
+            {!token
+              ? "Sign in to comment"
+              : selecting
+                ? "Cancel the comment"
+                : "Add a comment"}
+          </span>
           {!token && (
             <span class="count" aria-hidden="true">
-              <ArrowUpRightIcon />
+              <LockIcon />
             </span>
           )}
           {token && context && (

@@ -74,6 +74,15 @@ export const STYLES = `
   @keyframes ra-pop { from { opacity: 0; transform: translateX(8px); } }
   .seg.round .count.wide { padding: 0 5px; }
   .seg.round .count svg { width: 10px; height: 10px; }
+  .seg.round .count svg.lock { width: 12px; height: 12px; }
+  /* the round button's hover label, above it (below it near the top of the screen) */
+  .seg.round .tip { position: absolute; right: 0; bottom: calc(100% + 8px); padding: 4px 8px; border-radius: 6px;
+    background: var(--ra-pill); color: var(--ra-pill-ink); font-size: 12px; font-weight: 600; white-space: nowrap;
+    box-shadow: var(--ra-shadow); pointer-events: none; opacity: 0; transform: translateY(4px);
+    transition: opacity .12s, transform .12s; }
+  .bar.tip-below .seg.round .tip { bottom: auto; top: calc(100% + 8px); transform: translateY(-4px); }
+  @media (hover: hover) { .seg.round:hover .tip { opacity: 1; transform: none; transition-delay: .25s; } }
+  .bar.grabbing .seg.round .tip { display: none; }
   .seg.round .count .spinner { width: 8px; height: 8px; }
 
   /* saving: a spinner in the pill's second line */
