@@ -60,9 +60,11 @@ export const STYLES = `
   .seg.round { position: relative; width: ${ROUND_SIZE}px; justify-content: center; padding: 0; }
   .seg.round svg { width: 20px; height: 20px; }
   .seg.round.active, .seg.round.active:hover { background: var(--ra-accent); color: var(--ra-accent-ink); }
-  .seg.round .count { position: absolute; top: -5px; right: -5px; min-width: 20px; height: 20px; padding: 0 5px;
+  /* a circle, unless the count has two digits or more: then a pill */
+  .seg.round .count { position: absolute; top: -5px; right: -5px; min-width: 20px; height: 20px; padding: 0;
     display: flex; align-items: center; justify-content: center; border-radius: 999px; border: 1.5px solid var(--ra-pill);
     background: var(--ra-pill-ink); color: var(--ra-pill); font-size: 11px; font-weight: 700; line-height: 1; }
+  .seg.round .count.wide { padding: 0 5px; }
   .seg.round .count svg { width: 10px; height: 10px; }
   .seg.round .count .spinner { width: 8px; height: 8px; }
 

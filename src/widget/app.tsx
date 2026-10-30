@@ -571,7 +571,10 @@ export function App({ host }: { host: HTMLElement }) {
             </span>
           )}
           {token && context && (
-            <span class="count" aria-hidden="true">
+            <span
+              class={`count${!savingCount && count > 9 ? " wide" : ""}`}
+              aria-hidden="true"
+            >
               {savingCount > 0 ? (
                 <span class="spinner" />
               ) : count > 0 ? (
