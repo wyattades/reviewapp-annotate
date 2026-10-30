@@ -1,4 +1,4 @@
-import { useRef, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { Avatar } from "./avatar";
 import { hasRegion, locateItem, pageKey } from "./geometry";
 import { CheckCircleIcon } from "./icons";
@@ -79,6 +79,22 @@ export function Pins({
   /** a drag ends in a click on the pin: that click isn't one */
   const justDragged = useRef(false);
 
+  // however the press ends (even when the pin never hears it), the drag is over
+  const dragging = drag !== null;
+  useEffect(() => {
+    if (!dragging) return;
+    const end = () => setDrag(null);
+    // bubbling, so the pin's own release (which saves the move) comes first
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end, true);
+    window.addEventListener("blur", end);
+    return () => {
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end, true);
+      window.removeEventListener("blur", end);
+    };
+  }, [dragging]);
+
   const here = pageKey(location.href);
   const placed = items
     .filter(
@@ -146,6 +162,7 @@ export function Pins({
             setDrag({ ...drag, dx, dy, moved: isDrag });
           }}
           onPointerUp={() => endDrag(item, rect)}
+          onPointerCancel={() => setDrag(null)}
           // the browser's own drag-and-drop (an avatar image) or a long-press menu would cancel the touch
           onDragStart={(event) => event.preventDefault()}
           onContextMenu={(event) => event.preventDefault()}
