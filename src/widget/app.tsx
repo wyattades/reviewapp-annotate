@@ -4,7 +4,7 @@ import { popoverStyle, useBarPosition } from "./bar-position";
 import { Composer } from "./composer";
 import { getConsoleEntries } from "./console-capture";
 import { describeTarget, findElement, locateItem, pageKey } from "./geometry";
-import { ArrowUpRightIcon, CommentIcon, PlusIcon } from "./icons";
+import { ArrowUpRightIcon, CommentIcon, ListIcon, PlusIcon } from "./icons";
 import { Panel } from "./panel";
 import { Pins } from "./pins";
 import { SelectOverlay } from "./select-overlay";
@@ -54,12 +54,7 @@ export function App({ host }: { host: HTMLElement }) {
   const queuedReplies = useRef(new Map<string, string[]>());
   /** whether the round button was last pressed by a finger */
   const touchRef = useRef(false);
-  const {
-    pos,
-    grabbing,
-    dragging,
-    handlers: dragHandlers,
-  } = useBarPosition(() => showList());
+  const { pos, grabbing, dragging, handlers: dragHandlers } = useBarPosition();
 
   // --- sign-in ---
 
@@ -442,9 +437,8 @@ export function App({ host }: { host: HTMLElement }) {
     openThread(null);
     setMode({ kind: "selecting", touch: touchRef.current });
   };
-  /** A long press or double-click on the round button: everyone's comments. */
-  const showList = () => {
-    if (!token || !context) return;
+  /** The side button: everyone's comments, instead of adding one. */
+  const toggleList = () => {
     setMode({ kind: "idle" });
     openThread(null);
     setPanelOpen((isOpen) => !isOpen);
@@ -533,16 +527,28 @@ export function App({ host }: { host: HTMLElement }) {
         style={{ right: pos.right, bottom: pos.bottom }}
         {...dragHandlers}
       >
+        {/* while adding a comment (or reading the list): the way to the list, beside the round button */}
+        {context && (selecting || panelOpen) && (
+          <button
+            type="button"
+            class={`seg side${panelOpen ? " active" : ""}`}
+            aria-pressed={panelOpen}
+            title={panelOpen ? "Hide the comments" : "Show all comments"}
+            onClick={toggleList}
+          >
+            <ListIcon />
+            Comments
+          </button>
+        )}
         <button
           type="button"
-          class={`seg round${selecting || panelOpen ? " active" : ""}`}
-          aria-pressed={panelOpen}
+          class={`seg round${selecting ? " active" : ""}`}
           title={
             !token
               ? "Sign in to comment"
               : selecting
                 ? "Cancel the comment"
-                : "Add a comment · double-click or long-press for all comments"
+                : "Add a comment"
           }
           aria-label={
             !token
@@ -557,10 +563,8 @@ export function App({ host }: { host: HTMLElement }) {
           onPointerDown={(event) => {
             touchRef.current = event.pointerType === "touch";
           }}
-          onClick={(event) => {
+          onClick={() => {
             if (!token) return openSignIn();
-            // the second click of a double-click: the list, not another comment
-            if (event.detail >= 2) return showList();
             if (selecting) return setMode({ kind: "idle" });
             startSelecting();
           }}

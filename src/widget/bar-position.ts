@@ -8,8 +8,6 @@ const KEY = "reviewapp-annotate-bar";
 const DEFAULT: BarPosition = { right: 16, bottom: 16 };
 /** Moving less than this is a click on a button, not a drag. */
 const DRAG_THRESHOLD = 4;
-/** Held this long without moving: a long press, not a click. */
-const LONG_PRESS_MS = 500;
 /** Keeps at least this much of the bar on screen. */
 const MIN_VISIBLE = { w: ROUND_SIZE, h: ROUND_SIZE };
 const GAP = 8;
@@ -46,10 +44,9 @@ function save(pos: BarPosition) {
 /**
  * The bar's position and the pointer handler that drags it. Buttons on the bar
  * still click: dragging only starts once the pointer has moved a few pixels,
- * and a drag doesn't also click whatever it ends over. Holding still on it is
- * a long press (`onLongPress`), which doesn't click either.
+ * and a drag doesn't also click whatever it ends over.
  */
-export function useBarPosition(onLongPress: () => void) {
+export function useBarPosition() {
   const [pos, setPos] = useState(load);
   /** Held down: a class, not `:active`, which touch can leave stuck on after a drag. */
   const [grabbing, setGrabbing] = useState(false);
@@ -73,21 +70,14 @@ export function useBarPosition(onLongPress: () => void) {
       const from = pos;
       let last = from;
       let moving = false;
-      let longPressed = false;
-      const longPress = setTimeout(() => {
-        longPressed = true;
-        onLongPress();
-      }, LONG_PRESS_MS);
       setGrabbing(true);
 
       // on window, not the bar: a fast drag leaves the bar before the first move
       const onMove = (move: PointerEvent) => {
         const dx = move.clientX - start.x;
         const dy = move.clientY - start.y;
-        if (longPressed) return;
         if (!moving && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
         if (!moving) {
-          clearTimeout(longPress);
           // so the release is heard even over an iframe or outside the window
           try {
             bar.setPointerCapture(pointerId);
@@ -108,9 +98,8 @@ export function useBarPosition(onLongPress: () => void) {
         bar.removeEventListener("lostpointercapture", onLost);
         setGrabbing(false);
         setDragging(false);
-        clearTimeout(longPress);
-        if (!moving && !longPressed) return;
-        if (moving) save(last);
+        if (!moving) return;
+        save(last);
 
         // the release would otherwise click a button the bar ended up under
         const swallow = (click: Event) => click.stopImmediatePropagation();
@@ -135,7 +124,7 @@ export function useBarPosition(onLongPress: () => void) {
     },
     // the browser's own drag-and-drop would swallow the pointer events
     onDragStart: (event: DragEvent) => event.preventDefault(),
-    // a long press on a touch screen would also open the browser's menu
+    // holding a finger still on it, before dragging, would open the browser's menu
     onContextMenu: (event: MouseEvent) => event.preventDefault(),
   };
 

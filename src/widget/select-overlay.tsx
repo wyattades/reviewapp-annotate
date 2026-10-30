@@ -10,7 +10,7 @@ export function SelectOverlay({
   onSelect,
   onCancel,
 }: {
-  /** started by a tap: no Esc key or double-click to mention */
+  /** started by a tap: no Esc key to mention */
   touch: boolean;
   onSelect: (rect: Rect) => void;
   onCancel: () => void;
@@ -35,9 +35,6 @@ export function SelectOverlay({
         {touch
           ? "Drag to select an area, or tap to drop a pin · Tap the button to cancel"
           : "Drag to select an area, or click to drop a pin · Esc to cancel"}
-        <div class="sub">
-          {touch ? "Long-press" : "Double-click"} the button for all comments
-        </div>
       </div>
       <div
         class="catcher"
