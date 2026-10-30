@@ -149,8 +149,12 @@ export function Pins({
           // the browser's own drag-and-drop (an avatar image) or a long-press menu would cancel the touch
           onDragStart={(event) => event.preventDefault()}
           onContextMenu={(event) => event.preventDefault()}
-          // the capture is lost (e.g. the window lost focus): leave it where it was
-          onLostPointerCapture={() => setDrag(null)}
+          // the capture is lost (e.g. the window lost focus): leave it where it was.
+          // Not for a child: touch captures to the child under the finger first, and
+          // moving the capture to the pin fires (and bubbles) this for that child.
+          onLostPointerCapture={(event) => {
+            if (event.target === event.currentTarget) setDrag(null);
+          }}
           onPointerEnter={() => onHover(item.id)}
           onPointerLeave={onUnhover}
           onClick={() => {

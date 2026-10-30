@@ -88,7 +88,7 @@ export function useBarPosition() {
         window.removeEventListener("pointerup", onEnd);
         window.removeEventListener("pointercancel", onEnd);
         window.removeEventListener("blur", onEnd);
-        bar.removeEventListener("lostpointercapture", onEnd);
+        bar.removeEventListener("lostpointercapture", onLost);
         if (!moving) return;
         save(last);
 
@@ -104,7 +104,12 @@ export function useBarPosition() {
       window.addEventListener("pointerup", onEnd);
       window.addEventListener("pointercancel", onEnd);
       window.addEventListener("blur", onEnd);
-      bar.addEventListener("lostpointercapture", onEnd);
+      // Touch already captures the pointer to the child under the finger, so
+      // capturing it to the bar fires this (and bubbles) for that child: not the end.
+      const onLost = (lost: Event) => {
+        if (lost.target === bar) onEnd();
+      };
+      bar.addEventListener("lostpointercapture", onLost);
     },
     // the browser's own drag-and-drop would swallow the pointer events
     onDragStart: (event: DragEvent) => event.preventDefault(),
