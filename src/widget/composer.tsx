@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { captureRegion, imageToJpeg } from "./capture";
+import {
+  canCaptureTab,
+  captureRegion,
+  captureTab,
+  imageToJpeg,
+} from "./capture";
 import { bakeStrokes, DrawingLayer, type Stroke } from "./drawing";
 import { hasRegion } from "./geometry";
 import { CloseIcon } from "./icons";
@@ -30,7 +35,7 @@ export function Composer({
   onCancel,
 }: {
   rect: Rect;
-  host: Element;
+  host: HTMLElement;
   onSubmit: (draft: Draft) => void;
   onCancel: () => void;
 }) {
@@ -53,7 +58,9 @@ export function Composer({
     return () => observer.disconnect();
   }, []);
   /** the screenshot as captured, before any drawing */
-  const rawShot = useRef<string | null>(null);
+  const [shot, setShot] = useState<string | null>(null);
+  /** a sharper screenshot is being taken (tab capture) */
+  const [recapturing, setRecapturing] = useState(false);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   /** the drawing is still being put on the screenshot */
   const [baking, setBaking] = useState(false);
@@ -67,15 +74,12 @@ export function Composer({
     let cancelled = false;
     void captureRegion(rect, host).then((dataUrl) => {
       if (cancelled) return;
-      rawShot.current = dataUrl;
+      setShot(dataUrl);
       // a region that couldn't be rendered just has no screenshot
-      setAttachments((current) =>
-        dataUrl
-          ? current.map((a) =>
-              a.kind === "screenshot" ? { ...a, dataUrl } : a,
-            )
-          : current.filter((a) => a.kind !== "screenshot"),
-      );
+      if (!dataUrl)
+        setAttachments((current) =>
+          current.filter((a) => a.kind !== "screenshot"),
+        );
     });
     return () => {
       cancelled = true;
@@ -84,7 +88,6 @@ export function Composer({
 
   // the screenshot, with whatever's been drawn on it
   useEffect(() => {
-    const shot = rawShot.current;
     if (!shot) return;
     let cancelled = false;
     setBaking(true);
@@ -100,7 +103,22 @@ export function Composer({
     return () => {
       cancelled = true;
     };
-  }, [strokes, rect]);
+  }, [shot, strokes, rect]);
+
+  /** Retakes the screenshot by capturing the tab itself: exact, but the browser asks first. */
+  const recapture = async () => {
+    setRecapturing(true);
+    const dataUrl = await captureTab(rect, host);
+    setRecapturing(false);
+    area.current?.focus();
+    if (!dataUrl) return; // declined or failed: keep the one we have
+    setShot(dataUrl);
+    setAttachments((current) =>
+      current.some((a) => a.kind === "screenshot")
+        ? current
+        : [{ id: newId(), kind: "screenshot", dataUrl: null }, ...current],
+    );
+  };
 
   const addStroke = (stroke: Stroke) => {
     setStrokes((current) => [...current, stroke]);
@@ -136,7 +154,7 @@ export function Composer({
     }
   };
 
-  const ready = attachments.every((a) => a.dataUrl) && !baking;
+  const ready = attachments.every((a) => a.dataUrl) && !baking && !recapturing;
   const canSend = text.trim().length > 0 && ready;
   const send = () => {
     if (!canSend) return;
@@ -233,6 +251,17 @@ export function Composer({
               </>
             ) : (
               <span>Draw on the selection to mark it up</span>
+            )}
+            {canCaptureTab() && (
+              <button
+                type="button"
+                class="link sharper"
+                disabled={recapturing}
+                title="Capture exactly what's on screen (your browser asks to share this tab)"
+                onClick={() => void recapture()}
+              >
+                {recapturing ? "Capturing…" : "Sharper screenshot"}
+              </button>
             )}
           </div>
         )}

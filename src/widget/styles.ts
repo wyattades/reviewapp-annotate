@@ -145,6 +145,8 @@ export const STYLES = `
   .composer .draw-hint .pen { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; }
   .composer .link { padding: 0; border: 0; background: none; color: #0969da; font-size: 12px; cursor: pointer; }
   .composer .link:hover { text-decoration: underline; }
+  .composer .link.sharper { margin-left: auto; white-space: nowrap; }
+  .composer .link:disabled { color: var(--ra-muted); cursor: default; text-decoration: none; }
 
   /* the selection while composing: draw on it */
   .region.drawing { pointer-events: auto; cursor: crosshair; touch-action: none; }

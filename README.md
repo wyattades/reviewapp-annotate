@@ -16,7 +16,7 @@ Leave comments on review apps (preview deployments), like Vercel's preview comme
 
 The widget is a round comment button in the corner of the page; its badge counts the PR's comments. Drag it anywhere.
 
-- **Comment:** click the button, then drag over part of the page (or click to drop a pin) and write. The region's screenshot goes with it.
+- **Comment:** click the button, then drag over part of the page (or click to drop a pin) and write. The region's screenshot goes with it. It's redrawn from the page's HTML, so it can miss things like cross-origin images; in Chrome or Edge on a desktop, **Sharper screenshot** captures the tab exactly as it looks instead (the browser asks to share the tab first).
 - **See everyone's comments:** while adding a comment, a list button shows beside the comment button, with the count. It opens every thread on the PR, across pages.
 - **Reply and resolve:** threads are pins on the page; open one to reply, resolve it, or drag the pin to move it.
 - Signed out, the badge is a lock: the button signs you in.
