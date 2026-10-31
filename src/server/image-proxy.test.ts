@@ -72,7 +72,10 @@ describe("fetchImage", () => {
     const { fetcher } = fakeFetch({ "https://cdn.test/a.png": image() });
     const result = await fetchImage(new URL("https://cdn.test/a.png"), fetcher);
     assert.equal(result?.contentType, "image/png");
-    assert.deepEqual(new Uint8Array(result!.bytes), PNG);
+    assert.deepEqual(
+      new Uint8Array(await new Response(result!.body).arrayBuffer()),
+      PNG,
+    );
   });
 
   it("follows public redirects, and stops at private ones", async () => {
@@ -115,19 +118,33 @@ describe("fetchImage", () => {
     }
   });
 
-  it("refuses what's too big, whatever content-length says", async () => {
-    const big = new Uint8Array(MAX_IMAGE_BYTES + 1);
+  it("refuses what says it's too big", async () => {
     const { fetcher } = fakeFetch({
-      // no content-length: a stream, so only reading it tells
       "https://cdn.test/big": () =>
-        new Response(new Blob([big]).stream(), {
-          headers: { "content-type": "image/png" },
+        new Response(PNG, {
+          headers: {
+            "content-type": "image/png",
+            "content-length": String(MAX_IMAGE_BYTES + 1),
+          },
         }),
     });
     assert.equal(
       await fetchImage(new URL("https://cdn.test/big"), fetcher),
       null,
     );
+  });
+
+  it("cuts off a stream once it passes the cap", async () => {
+    const big = new Uint8Array(MAX_IMAGE_BYTES + 1);
+    const { fetcher } = fakeFetch({
+      // no content-length: only reading it tells
+      "https://cdn.test/big": () =>
+        new Response(new Blob([big]).stream(), {
+          headers: { "content-type": "image/png" },
+        }),
+    });
+    const result = await fetchImage(new URL("https://cdn.test/big"), fetcher);
+    await assert.rejects(new Response(result!.body).arrayBuffer());
   });
 
   it("passes on a failed fetch", async () => {

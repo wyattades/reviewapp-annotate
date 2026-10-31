@@ -336,10 +336,14 @@ export function createHandler(config: ReviewAnnotateConfig) {
     if (!url) return json(request, { error: "Not a public URL" }, 400);
     const image = await fetchImage(url).catch(() => null);
     if (!image) return json(request, { error: "Couldn't load the image" }, 502);
-    return new Response(image.bytes, {
+    // streamed through as it arrives; one that passes the size cap is cut off
+    return new Response(image.body, {
       headers: {
         ...corsHeaders(request),
         "content-type": image.contentType,
+        ...(image.length !== null && {
+          "content-length": String(image.length),
+        }),
         "cache-control": "private, max-age=300",
         "x-content-type-options": "nosniff",
         "content-security-policy": "default-src 'none'",

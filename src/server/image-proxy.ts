@@ -66,12 +66,18 @@ function privateIPv4(a: number, b: number) {
   );
 }
 
-export type ProxiedImage = { bytes: ArrayBuffer; contentType: string };
+export type ProxiedImage = {
+  /** The body, passed through as it arrives; it errors once it passes `MAX_IMAGE_BYTES`. */
+  body: ReadableStream<Uint8Array>;
+  contentType: string;
+  /** From the image's own content-length, when it sent one. */
+  length: number | null;
+};
 
 /**
  * The image at `url`, following up to 3 redirects (each checked like the
- * first); null when it isn't a public URL, isn't an image, is too big, or
- * doesn't answer in time.
+ * first); null when it isn't a public URL, isn't an image, says it's too big,
+ * or doesn't answer in time.
  */
 export async function fetchImage(
   url: URL,
@@ -86,6 +92,7 @@ export async function fetchImage(
       headers: { accept: "image/*" },
     });
     if (response.status >= 300 && response.status < 400) {
+      await response.body?.cancel();
       const next = publicUrl(
         new URL(response.headers.get("location") ?? "", current).href,
       );
@@ -93,42 +100,37 @@ export async function fetchImage(
       current = next;
       continue;
     }
-    if (!response.ok) return null;
-    const contentType = response.headers.get("content-type") ?? "";
-    // never something a browser would run: no SVG (it can hold scripts), no HTML
+    const contentType = (response.headers.get("content-type") ?? "")
+      .split(";")[0]!
+      .trim();
+    const length = Number(response.headers.get("content-length") ?? NaN);
     if (
-      !/^image\/(?!svg)[a-z0-9.+-]+$/i.test(contentType.split(";")[0]!.trim())
-    )
+      !response.ok ||
+      !response.body ||
+      // never something a browser would run: no SVG (it can hold scripts), no HTML
+      !/^image\/(?!svg)[a-z0-9.+-]+$/i.test(contentType) ||
+      length > MAX_IMAGE_BYTES
+    ) {
+      await response.body?.cancel();
       return null;
-    if (Number(response.headers.get("content-length")) > MAX_IMAGE_BYTES)
-      return null;
-    const bytes = await readCapped(response, MAX_IMAGE_BYTES);
-    return bytes && { bytes, contentType: contentType.split(";")[0]!.trim() };
+    }
+    return {
+      body: response.body.pipeThrough(capped(MAX_IMAGE_BYTES)),
+      contentType,
+      length: Number.isFinite(length) ? length : null,
+    };
   }
   return null;
 }
 
-/** The body, or null once it passes `max` bytes (a missing or wrong content-length can't make it read more). */
-async function readCapped(response: Response, max: number) {
-  const reader = response.body?.getReader();
-  if (!reader) return null;
-  const chunks: Uint8Array[] = [];
+/** Passes bytes through until more than `max` have gone by, then errors (a missing or wrong content-length can't make it pass more). */
+function capped(max: number) {
   let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > max) {
-      await reader.cancel();
-      return null;
-    }
-    chunks.push(value);
-  }
-  const bytes = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return bytes.buffer;
+  return new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      size += chunk.byteLength;
+      if (size > max) controller.error(new Error("Image too big"));
+      else controller.enqueue(chunk);
+    },
+  });
 }
