@@ -96,8 +96,8 @@
   },
   "devDependencies": {
     "@types/node": "^24",
+    "@zumer/snapdom": "3.7.0",
     "esbuild": "0.25.12",
-    "html2canvas-pro": "^2.5.0",
     "marked": "^18.1.1",
     "playwright": "^1.64.1",
     "preact": "^10.29.8",

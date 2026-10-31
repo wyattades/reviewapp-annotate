@@ -5,6 +5,7 @@ import { connectPage, htmlResponse } from "./connect";
 import { corsHeaders } from "./cors";
 import { participantsOf, type ReviewEvent } from "./events";
 import { createOctokitGitHub, type PullInfo } from "./github";
+import { fetchImage, publicUrl } from "./image-proxy";
 import { githubRefLock } from "./lock";
 import { normalizeOrigin } from "./origin";
 import { defaultProviders } from "./providers";
@@ -22,6 +23,9 @@ const rectSchema = z.object({
   w: z.number(),
   h: z.number(),
 });
+
+/** How long a token for the image proxy lasts: long enough for a screenshot or a few. */
+const IMAGE_PROXY_TOKEN_TTL_SECONDS = 5 * 60;
 
 /** How long a PR's title and author are remembered. */
 const PULL_TTL_MS = 5 * 60_000;
@@ -87,6 +91,8 @@ type Authorized =
  * - `DELETE {basePath}?id=` (and `&reply=`): remove your own
  * - `GET {basePath}/connect?origin=`: the sign-in popup
  * - `GET {basePath}/asset?id=&n=`: one of a thread's images
+ * - `GET {basePath}/image-proxy-token`, then `GET {basePath}/image-proxy?token=&url=`:
+ *   an image from another site, for a screenshot (see `imageProxy`)
  * - `GET {basePath}/widget.js`: the browser widget, for review apps to load
  */
 export function createHandler(config: ReviewAnnotateConfig) {
@@ -101,6 +107,13 @@ export function createHandler(config: ReviewAnnotateConfig) {
   const tokens = createTokens({
     secret: config.tokenSecret,
     ttlSeconds: config.tokenTtlSeconds ?? 12 * 60 * 60,
+  });
+  // the image proxy's tokens go in a URL (the screenshot library fetches it
+  // with no headers), so they're their own: short-lived, and signed with a key
+  // the sign-in tokens don't share, so neither works as the other
+  const imageProxyTokens = createTokens({
+    secret: `${config.tokenSecret}:image-proxy`,
+    ttlSeconds: IMAGE_PROXY_TOKEN_TTL_SECONDS,
   });
   const finder = createReviewAppPrFinder({
     github,
@@ -307,6 +320,33 @@ export function createHandler(config: ReviewAnnotateConfig) {
     }
   }
 
+  /**
+   * An image from another site, `?token=<image proxy token>&url=`: what a page
+   * can't read for a screenshot without CORS headers. See `./image-proxy`.
+   */
+  async function imageProxy(request: Request) {
+    const params = new URL(request.url).searchParams;
+    const claims = await imageProxyTokens.verify(params.get("token") ?? "");
+    if (!claims) return json(request, { error: "Sign in again" }, 401);
+    const sent = request.headers.get("origin");
+    if (sent && sent !== normalizeOrigin(claims.origin)?.origin) {
+      return json(request, { error: "Token is for another app" }, 403);
+    }
+    const url = publicUrl(params.get("url"));
+    if (!url) return json(request, { error: "Not a public URL" }, 400);
+    const image = await fetchImage(url).catch(() => null);
+    if (!image) return json(request, { error: "Couldn't load the image" }, 502);
+    return new Response(image.bytes, {
+      headers: {
+        ...corsHeaders(request),
+        "content-type": image.contentType,
+        "cache-control": "private, max-age=300",
+        "x-content-type-options": "nosniff",
+        "content-security-policy": "default-src 'none'",
+      },
+    });
+  }
+
   async function get(
     request: Request,
     auth: Extract<Authorized, { ok: true }>,
@@ -476,6 +516,25 @@ export function createHandler(config: ReviewAnnotateConfig) {
       const auth = await authorize(request);
       if (!auth.ok) return json(request, { error: auth.error }, auth.status);
       return asset(request, auth);
+    }
+    if (
+      path === `${base}/image-proxy-token` &&
+      request.method === "GET" &&
+      config.imageProxy !== false
+    ) {
+      const auth = await authorize(request);
+      if (!auth.ok) return json(request, { error: auth.error }, auth.status);
+      return json(request, {
+        token: await imageProxyTokens.sign(auth.claims),
+        expiresIn: IMAGE_PROXY_TOKEN_TTL_SECONDS,
+      });
+    }
+    if (
+      path === `${base}/image-proxy` &&
+      request.method === "GET" &&
+      config.imageProxy !== false
+    ) {
+      return imageProxy(request);
     }
     if (path !== base) return json(request, { error: "Not found" }, 404);
 

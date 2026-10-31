@@ -95,6 +95,15 @@ export type ReviewAnnotateConfig = {
   images?: ImageStorage;
 
   /**
+   * Fetches images from other sites for the widget's screenshots, which would
+   * otherwise show them blank (a page can't read another site's image without
+   * CORS headers). Only for signed-in reviewers, only public http(s) URLs, and
+   * only images up to 10MB. Default true; turn it off if this server can reach
+   * hosts on a private network that it shouldn't fetch from.
+   */
+  imageProxy?: boolean;
+
+  /**
    * Called when something happens in a review app: a thread, a reply, a
    * thread ticked off. For telling people (see `reviewapp-annotate/slack`), or
    * whatever else you want. It runs after the change is saved, and if it throws
