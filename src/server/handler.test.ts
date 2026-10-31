@@ -19,6 +19,7 @@ function setup(
   options: {
     latencyMs?: number;
     images?: Parameters<typeof createHandler>[0]["images"];
+    imageProxy?: boolean;
     onEvent?: Parameters<typeof createHandler>[0]["onEvent"];
     waitUntil?: Parameters<typeof createHandler>[0]["waitUntil"];
     pr?: Parameters<ReturnType<typeof createFakeGitHub>["addPull"]>[1];
@@ -52,6 +53,7 @@ function setup(
     },
     signInUrl: (returnTo) => `/login?next=${encodeURIComponent(returnTo)}`,
     images: options.images,
+    imageProxy: options.imageProxy,
     onEvent: options.onEvent,
     waitUntil: options.waitUntil,
     onError: (error) => errors.push(error),
@@ -203,6 +205,108 @@ describe("the widget script", () => {
     const script = await res.text();
     assert.ok(script.length > 10_000, "it's the real bundle");
     assert.ok(script.includes("reviewapp-annotate-token"));
+  });
+});
+
+describe("the image proxy", () => {
+  /** stands in for the internet while `run` runs */
+  async function withFetch<T>(
+    routes: Record<string, () => Response>,
+    run: () => Promise<T>,
+  ) {
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL) =>
+      routes[String(input)]?.() ??
+      new Response("missing", { status: 404 })) as typeof fetch;
+    try {
+      return await run();
+    } finally {
+      globalThis.fetch = real;
+    }
+  }
+  const png = () =>
+    new Response(new Uint8Array([1, 2, 3]), {
+      headers: { "content-type": "image/png" },
+    });
+  const proxy = (token: string, url: string, origin = ORIGIN) =>
+    new Request(
+      `${BASE}/image-proxy?token=${encodeURIComponent(token)}&url=${encodeURIComponent(url)}`,
+      { headers: { origin } },
+    );
+
+  it("gives a signed-in reviewer a token, and fetches public images with it", async () => {
+    const { handle, call, signIn } = setup();
+    assert.equal(
+      (await call("GET", null, { query: "/image-proxy-token" })).status,
+      401,
+    );
+    const token = await signIn("ada");
+    const res = await call("GET", token, { query: "/image-proxy-token" });
+    assert.equal(res.status, 200);
+    const { token: proxyToken, expiresIn } = (await res.json()) as {
+      token: string;
+      expiresIn: number;
+    };
+    assert.equal(expiresIn, 300);
+
+    const image = await withFetch({ "https://cdn.test/a.png": png }, () =>
+      handle(proxy(proxyToken, "https://cdn.test/a.png")),
+    );
+    assert.equal(image.status, 200);
+    assert.equal(image.headers.get("content-type"), "image/png");
+    assert.equal(image.headers.get("access-control-allow-origin"), ORIGIN);
+    assert.equal(image.headers.get("x-content-type-options"), "nosniff");
+    assert.deepEqual(
+      new Uint8Array(await image.arrayBuffer()),
+      new Uint8Array([1, 2, 3]),
+    );
+  });
+
+  it("refuses the sign-in token itself, other apps, and private URLs", async () => {
+    const { handle, call, signIn } = setup();
+    const token = await signIn("ada");
+    const { token: proxyToken } = (await (
+      await call("GET", token, { query: "/image-proxy-token" })
+    ).json()) as { token: string };
+    await withFetch({ "https://cdn.test/a.png": png }, async () => {
+      // the long-lived sign-in token doesn't work here, nor the proxy's as a sign-in
+      assert.equal(
+        (await handle(proxy(token, "https://cdn.test/a.png"))).status,
+        401,
+      );
+      assert.equal((await call("GET", proxyToken)).status, 401);
+      assert.equal(
+        (
+          await handle(
+            proxy(proxyToken, "https://cdn.test/a.png", "https://other.test"),
+          )
+        ).status,
+        403,
+      );
+      assert.equal(
+        (await handle(proxy(proxyToken, "http://169.254.169.254/latest")))
+          .status,
+        400,
+      );
+      assert.equal(
+        (await handle(proxy(proxyToken, "https://cdn.test/missing.png")))
+          .status,
+        502,
+      );
+    });
+  });
+
+  it("is gone with imageProxy: false", async () => {
+    const { call, signIn } = setup({ imageProxy: false });
+    const token = await signIn("ada");
+    assert.equal(
+      (await call("GET", token, { query: "/image-proxy-token" })).status,
+      404,
+    );
+    assert.equal(
+      (await call("GET", token, { query: "/image-proxy?url=x" })).status,
+      404,
+    );
   });
 });
 
