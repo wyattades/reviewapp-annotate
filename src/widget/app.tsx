@@ -1,8 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
-import { api, listenForToken, openSignIn, send, tokenStore } from "./api";
-import { popoverStyle, useBarPosition } from "./bar-position";
+import {
+  api,
+  externalLauncher,
+  listenForToken,
+  openSignIn,
+  send,
+  tokenStore,
+} from "./api";
+import {
+  anchoredPopoverStyle,
+  popoverStyle,
+  useBarPosition,
+} from "./bar-position";
 import { Composer } from "./composer";
 import { getConsoleEntries } from "./console-capture";
+import {
+  type AnchorRect,
+  type EmbedCommands,
+  type EmbedState,
+  installEmbedApi,
+  onLauncher,
+} from "./embed";
 import { describeTarget, findElement, locateItem, pageKey } from "./geometry";
 import { CommentIcon, ListIcon, LockIcon, PlusIcon } from "./icons";
 import { Panel } from "./panel";
@@ -55,6 +73,8 @@ export function App({ host }: { host: HTMLElement }) {
   /** whether the round button was last pressed by a finger */
   const touchRef = useRef(false);
   const { pos, grabbing, dragging, handlers: dragHandlers } = useBarPosition();
+  /** the page's toolbar button the list opens beside (`data-launcher="external"`) */
+  const [listAnchor, setListAnchor] = useState<AnchorRect | null>(null);
 
   // --- sign-in ---
 
@@ -177,6 +197,8 @@ export function App({ host }: { host: HTMLElement }) {
   useEffect(() => {
     if (!panelOpen) return;
     const onPointerDown = (event: PointerEvent) => {
+      // the page's own toolbar button toggles the list itself
+      if (externalLauncher && onLauncher(event)) return;
       if (event.target !== host) setPanelOpen(false);
     };
     const onKey = (event: KeyboardEvent) => {
@@ -501,6 +523,56 @@ export function App({ host }: { host: HTMLElement }) {
   const barLeft = innerWidth - pos.right - ROUND_SIZE;
   const onLeft = barLeft + ROUND_SIZE / 2 < innerWidth / 2;
   const open = shown.find((i) => i.id === openId);
+  const panelWidth = Math.min(PANEL_WIDTH, innerWidth - 16);
+
+  // --- driven from the page's own toolbar (`data-launcher="external"`) ---
+
+  const commands: EmbedCommands = {
+    signIn: openSignIn,
+    toggleComment: () => {
+      if (!token) return openSignIn();
+      if (!context) return;
+      if (selecting) setMode({ kind: "idle" });
+      else startSelecting();
+    },
+    toggleList: (anchor) => {
+      if (!context) return;
+      setListAnchor(anchor);
+      toggleList();
+    },
+    retry: () => problem?.retry?.(),
+    dismiss: () => setProblem(null),
+  };
+  const commandsRef = useRef(commands);
+  commandsRef.current = commands;
+  const publishRef = useRef<((state: EmbedState) => void) | null>(null);
+  useEffect(() => {
+    if (externalLauncher)
+      publishRef.current = installEmbedApi(() => commandsRef.current);
+  }, []);
+  useEffect(() => {
+    publishRef.current?.({
+      signedIn: !!token,
+      loading: !!token && !context,
+      status,
+      prNumber: context?.prNumber ?? null,
+      commentUrl: context?.commentUrl ?? null,
+      count,
+      selecting,
+      listOpen: panelOpen,
+      saving: savingCount > 0,
+      problem: problem && { text: problem.text, canRetry: !!problem.retry },
+    });
+  }, [
+    token,
+    context,
+    status,
+    count,
+    selecting,
+    panelOpen,
+    savingCount,
+    problem,
+  ]);
   const onThisPage = open && pageKey(open.pageUrl) === pageKey(location.href);
 
   return (
@@ -552,7 +624,11 @@ export function App({ host }: { host: HTMLElement }) {
       )}
       {panelOpen && context && (
         <Panel
-          style={popoverStyle(pos, Math.min(PANEL_WIDTH, innerWidth - 16))}
+          style={
+            externalLauncher && listAnchor
+              ? anchoredPopoverStyle(listAnchor, panelWidth)
+              : popoverStyle(pos, panelWidth)
+          }
           commentUrl={context.commentUrl}
           prNumber={context.prNumber}
           items={shown}
@@ -562,89 +638,93 @@ export function App({ host }: { host: HTMLElement }) {
         />
       )}
 
-      <div
-        class={`bar${grabbing ? " grabbing" : ""}${dragging ? " dragging" : ""}${
-          // too close to the top for the tooltip above it
-          innerHeight - pos.bottom - ROUND_SIZE < 48 ? " tip-below" : ""
-        }${onLeft ? " on-left" : ""}`}
-        style={
-          // pinned by the round button's edge nearest the middle, so what's
-          // beside it (the Comments button, a problem) grows toward the middle
-          onLeft
-            ? { left: barLeft, bottom: pos.bottom }
-            : { right: pos.right, bottom: pos.bottom }
-        }
-        {...dragHandlers}
-      >
-        {/* while adding a comment (or reading the list): the way to the list, beside the round button */}
-        {listButton && (
-          <button
-            type="button"
-            class={`seg round side${panelOpen ? " active" : ""}`}
-            aria-pressed={panelOpen}
-            aria-label={`${panelOpen ? "Hide" : "Show"} the ${count} ${count === 1 ? "comment" : "comments"} on PR #${listButton.prNumber}`}
-            onClick={toggleList}
-          >
-            <ListIcon />
-            <span class="tip" aria-hidden="true">
-              {panelOpen ? "Hide the comments" : "All comments"}
-            </span>
-            {countBadge}
-          </button>
-        )}
-        <button
-          type="button"
-          class={`seg round main${selecting ? " active" : ""}`}
-          aria-label={
-            !token
-              ? "Sign in to comment"
-              : selecting
-                ? "Cancel the comment"
-                : context
-                  ? `Add a comment (${count} on PR #${context.prNumber})`
-                  : status || "Loading comments"
+      {!externalLauncher && (
+        <div
+          class={`bar${grabbing ? " grabbing" : ""}${dragging ? " dragging" : ""}${
+            // too close to the top for the tooltip above it
+            innerHeight - pos.bottom - ROUND_SIZE < 48 ? " tip-below" : ""
+          }${onLeft ? " on-left" : ""}`}
+          style={
+            // pinned by the round button's edge nearest the middle, so what's
+            // beside it (the Comments button, a problem) grows toward the middle
+            onLeft
+              ? { left: barLeft, bottom: pos.bottom }
+              : { right: pos.right, bottom: pos.bottom }
           }
-          disabled={!!token && !context}
-          onPointerDown={(event) => {
-            touchRef.current = event.pointerType === "touch";
-          }}
-          onClick={() => {
-            if (!token) return openSignIn();
-            if (selecting) return setMode({ kind: "idle" });
-            startSelecting();
-          }}
+          {...dragHandlers}
         >
-          <CommentIcon />
-          {/* on hover; not `title`, which shows late and looks out of place */}
-          <span class="tip" aria-hidden="true">
-            {!token
-              ? "Sign in to comment"
-              : selecting
-                ? "Cancel the comment"
-                : "Add a comment"}
-          </span>
-          {!token && (
-            <span class="count" aria-hidden="true">
-              <LockIcon />
-            </span>
+          {/* while adding a comment (or reading the list): the way to the list, beside the round button */}
+          {listButton && (
+            <button
+              type="button"
+              class={`seg round side${panelOpen ? " active" : ""}`}
+              aria-pressed={panelOpen}
+              aria-label={`${panelOpen ? "Hide" : "Show"} the ${count} ${count === 1 ? "comment" : "comments"} on PR #${listButton.prNumber}`}
+              onClick={toggleList}
+            >
+              <ListIcon />
+              <span class="tip" aria-hidden="true">
+                {panelOpen ? "Hide the comments" : "All comments"}
+              </span>
+              {countBadge}
+            </button>
           )}
-          {/* the count rides on the list button while it's there */}
-          {!listButton && countBadge}
-        </button>
-        {problem && (
           <button
             type="button"
-            class="seg problem"
-            title={problem.text}
-            onClick={() => (problem.retry ? problem.retry() : setProblem(null))}
+            class={`seg round main${selecting ? " active" : ""}`}
+            aria-label={
+              !token
+                ? "Sign in to comment"
+                : selecting
+                  ? "Cancel the comment"
+                  : context
+                    ? `Add a comment (${count} on PR #${context.prNumber})`
+                    : status || "Loading comments"
+            }
+            disabled={!!token && !context}
+            onPointerDown={(event) => {
+              touchRef.current = event.pointerType === "touch";
+            }}
+            onClick={() => {
+              if (!token) return openSignIn();
+              if (selecting) return setMode({ kind: "idle" });
+              startSelecting();
+            }}
           >
-            <span class="label">
-              {problem.retry ? "Not sent" : "Couldn't save"}
+            <CommentIcon />
+            {/* on hover; not `title`, which shows late and looks out of place */}
+            <span class="tip" aria-hidden="true">
+              {!token
+                ? "Sign in to comment"
+                : selecting
+                  ? "Cancel the comment"
+                  : "Add a comment"}
             </span>
-            <span class="sub">{problem.retry ? "Retry" : "Dismiss"}</span>
+            {!token && (
+              <span class="count" aria-hidden="true">
+                <LockIcon />
+              </span>
+            )}
+            {/* the count rides on the list button while it's there */}
+            {!listButton && countBadge}
           </button>
-        )}
-      </div>
+          {problem && (
+            <button
+              type="button"
+              class="seg problem"
+              title={problem.text}
+              onClick={() =>
+                problem.retry ? problem.retry() : setProblem(null)
+              }
+            >
+              <span class="label">
+                {problem.retry ? "Not sent" : "Couldn't save"}
+              </span>
+              <span class="sub">{problem.retry ? "Retry" : "Dismiss"}</span>
+            </button>
+          )}
+        </div>
+      )}
     </>
   );
 }
