@@ -231,6 +231,31 @@ Who hears about what:
 
 For something other than Slack, use `recipientsFor(event)` from the same import to get who should hear, and write your own message.
 
+## Your own toolbar
+
+If your app already has a toolbar, the comment buttons can live in it. Add `data-launcher="external"` to the script tag and the widget draws no bar of its own. Pins, threads, the composer and the list of comments still come from the widget.
+
+```html
+<script
+  src="https://your-app.example.com/api/reviewapp-annotate/widget.js"
+  data-launcher="external"
+></script>
+```
+
+Your toolbar drives it through `window.reviewappAnnotate`, which is there once the `reviewapp-annotate:ready` event has fired on `window`:
+
+```ts
+const widget = window.reviewappAnnotate;
+const unsubscribe = widget.subscribe((state) => {
+  // state: { signedIn, loading, status, prNumber, commentUrl, count, selecting, listOpen, saving, problem }
+});
+
+commentButton.onclick = () => widget.toggleComment(); // signs in first when needed
+listButton.onclick = () => widget.toggleList(listButton); // the list opens beside it
+```
+
+`retry()` and `dismiss()` act on `state.problem`, a comment that didn't save. Give your toolbar the `data-reviewapp-annotate-launcher` attribute, so pressing it doesn't count as a click outside the list. Keep it above the widget's layers, at a `z-index` of `2147483647`, so it stays clickable while someone is picking a spot to comment on.
+
 ## Theming
 
 The widget's colors are CSS variables. Override them from your own CSS:

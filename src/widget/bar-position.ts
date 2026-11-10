@@ -1,4 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
+import type { AnchorRect } from "./embed";
 import { ROUND_SIZE } from "./styles";
 
 /** How far the widget's bar sits from the viewport's right and bottom edges. */
@@ -147,4 +148,31 @@ export function popoverStyle(
   return inLowerHalf
     ? { right, bottom: pos.bottom + barHeight + GAP, top: "auto" }
     : { right, top: barBottomEdge + GAP, bottom: "auto" };
+}
+
+/**
+ * Where a popover `width` wide goes beside a button on the page's own toolbar
+ * (`data-launcher="external"`): above it in the lower half of the screen, below
+ * it otherwise, lined up with its nearer edge and kept on screen.
+ */
+export function anchoredPopoverStyle(
+  anchor: AnchorRect,
+  width: number,
+  viewport = { width: innerWidth, height: innerHeight },
+) {
+  const maxLeft = Math.max(8, viewport.width - width - 8);
+  const onLeft = (anchor.left + anchor.right) / 2 < viewport.width / 2;
+  const left = Math.min(
+    maxLeft,
+    Math.max(8, onLeft ? anchor.left : anchor.right - width),
+  );
+  const inLowerHalf = (anchor.top + anchor.bottom) / 2 > viewport.height / 2;
+  return inLowerHalf
+    ? {
+        left,
+        right: "auto",
+        bottom: viewport.height - anchor.top + GAP,
+        top: "auto",
+      }
+    : { left, right: "auto", top: anchor.bottom + GAP, bottom: "auto" };
 }

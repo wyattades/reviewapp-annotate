@@ -12,6 +12,9 @@ const SERVER_ORIGIN = API_BASE ? new URL(API_BASE).origin : "";
 /** False when there's no telling where the server is (loaded from a CDN without `data-api`). */
 export const hasApi = !!resolved;
 
+/** `data-launcher="external"`: the page has its own toolbar button, so the widget draws no bar (see `embed.ts`). */
+export const externalLauncher = script?.dataset.launcher === "external";
+
 const TOKEN_KEY = "reviewapp-annotate-token";
 
 export const tokenStore = {
