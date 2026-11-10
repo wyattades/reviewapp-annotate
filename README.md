@@ -251,8 +251,7 @@ const unsubscribe = widget.subscribe((state) => {
 });
 
 commentButton.onclick = () => widget.toggleComment(); // signs in first when needed
-listButton.onclick = () =>
-  widget.toggleList(listButton.getBoundingClientRect());
+listButton.onclick = () => widget.toggleList(listButton); // the list opens beside it
 ```
 
 `retry()` and `dismiss()` act on `state.problem`, a comment that didn't save. Give your toolbar the `data-reviewapp-annotate-launcher` attribute, so pressing it doesn't count as a click outside the list. Keep it above the widget's layers, at a `z-index` of `2147483647`, so it stays clickable while someone is picking a spot to comment on.

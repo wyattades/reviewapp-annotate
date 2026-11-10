@@ -15,7 +15,6 @@ import {
 import { Composer } from "./composer";
 import { getConsoleEntries } from "./console-capture";
 import {
-  type AnchorRect,
   type EmbedCommands,
   type EmbedState,
   installEmbedApi,
@@ -74,7 +73,7 @@ export function App({ host }: { host: HTMLElement }) {
   const touchRef = useRef(false);
   const { pos, grabbing, dragging, handlers: dragHandlers } = useBarPosition();
   /** the page's toolbar button the list opens beside (`data-launcher="external"`) */
-  const [listAnchor, setListAnchor] = useState<AnchorRect | null>(null);
+  const [listAnchor, setListAnchor] = useState<Element | null>(null);
 
   // --- sign-in ---
 
@@ -625,8 +624,11 @@ export function App({ host }: { host: HTMLElement }) {
       {panelOpen && context && (
         <Panel
           style={
-            externalLauncher && listAnchor
-              ? anchoredPopoverStyle(listAnchor, panelWidth)
+            externalLauncher && listAnchor?.isConnected
+              ? anchoredPopoverStyle(
+                  listAnchor.getBoundingClientRect(),
+                  panelWidth,
+                )
               : popoverStyle(pos, panelWidth)
           }
           commentUrl={context.commentUrl}

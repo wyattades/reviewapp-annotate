@@ -42,8 +42,12 @@ export type EmbedApi = {
   signIn: () => void;
   /** Starts picking a spot for a comment, or cancels when already picking. */
   toggleComment: () => void;
-  /** Opens or closes the list of comments beside `anchor` (the toolbar button). */
-  toggleList: (anchor: AnchorRect) => void;
+  /**
+   * Opens or closes the list of comments beside `anchor`, the toolbar's
+   * button. It's measured on every layout, so the list follows the button
+   * when the toolbar moves.
+   */
+  toggleList: (anchor: Element) => void;
   retry: () => void;
   dismiss: () => void;
 };
