@@ -165,6 +165,16 @@
       const image = item?.imageUrls?.[Number(p.get("n"))];
       return image ? realFetch(image) : notFound();
     }
+    // the image proxy, for screenshots of images from sites without CORS:
+    // the real server fetches the image from its site; here the playground's
+    // own server stands in for that site (same path)
+    if (method === "GET" && url.pathname.endsWith("/image-proxy-token")) {
+      return ok({ token: "playground", expiresIn: 300 });
+    }
+    if (method === "GET" && url.pathname.endsWith("/image-proxy")) {
+      const target = new URL(p.get("url") ?? "", location.href);
+      return realFetch(target.pathname + target.search);
+    }
     if (method !== "GET" && window.playgroundFail) {
       return Response.json({ error: "The server is down" }, { status: 502 });
     }

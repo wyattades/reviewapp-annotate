@@ -45,6 +45,33 @@ export const api = (query = "", init: RequestInit = {}) =>
     },
   });
 
+let proxy: { prefix: string; until: number } | null = null;
+
+/**
+ * Where a screenshot can fetch an image from another site through the server
+ * (`…/image-proxy?token=…&url=`, the image's URL goes on the end), or null if
+ * the server doesn't offer it. Its token is short-lived, and kept until a
+ * minute before it runs out.
+ */
+export async function imageProxyPrefix(): Promise<string | null> {
+  if (proxy && Date.now() < proxy.until) return proxy.prefix;
+  try {
+    const res = await api("/image-proxy-token");
+    if (!res.ok) return null;
+    const { token, expiresIn } = (await res.json()) as {
+      token: string;
+      expiresIn: number;
+    };
+    proxy = {
+      prefix: `${API_BASE}/image-proxy?token=${encodeURIComponent(token)}&url=`,
+      until: Date.now() + (expiresIn - 60) * 1000,
+    };
+    return proxy.prefix;
+  } catch {
+    return null;
+  }
+}
+
 /** Opens the server's sign-in popup; it posts the token back (see `listenForToken`). */
 export function openSignIn() {
   window.open(

@@ -16,7 +16,7 @@ Leave comments on review apps (preview deployments), like Vercel's preview comme
 
 The widget is a round comment button in the corner of the page; its badge counts the PR's comments. Drag it anywhere.
 
-- **Comment:** click the button, then drag over part of the page (or click to drop a pin) and write. The region's screenshot goes with it.
+- **Comment:** click the button, then drag over part of the page (or click to drop a pin) and write. The region's screenshot goes with it: the page as the browser draws it, including web fonts, video, canvas, filled-in form fields and images from other sites.
 - **See everyone's comments:** while adding a comment, a list button shows beside the comment button, with the count. It opens every thread on the PR, across pages.
 - **Reply and resolve:** threads are pins on the page; open one to reply, resolve it, or drag the pin to move it.
 - Signed out, the badge is a lock: the button signs you in.
@@ -91,22 +91,23 @@ Or load it from a CDN, pinned to a version. A CDN can't know where your server i
 
 ## Config
 
-| Option                  | Purpose                                                                                                                                                                      |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `github`                | The GitHub App's `{ appId, privateKey }`. It reads PR comments and writes the review comment.                                                                                |
-| `repos`                 | The `owner/name` repos whose PRs have review apps.                                                                                                                           |
-| `tokenSecret`           | Secret (16+ characters) used to sign the widget's sign-in tokens. Changing it signs everyone out.                                                                            |
-| `authenticate(request)` | Returns the signed-in user `{ id, name, image? }` from your own session, `null` if signed out, or a `Response` to send instead (e.g. a 403 for non-teammates).               |
-| `signInUrl(returnTo)`   | Where to send signed-out users. After signing in, send them back to `returnTo`.                                                                                              |
-| `additionalProviders?`  | Extra hosts to find review apps on, besides the built-in Vercel, Cloudflare and Netlify. See [Custom providers](#custom-providers).                                          |
-| `lock?`                 | Runs writes to a PR's comment one at a time, since GitHub can't safely merge two simultaneous edits. Defaults to a lock built on a git ref; pass your own to save API calls. |
-| `sharedCache?`          | A key-value store (Redis, KV, ...) shared by your server instances. Speeds up cold starts by remembering which PR each review app belongs to.                                |
-| `basePath?`             | Where the server is mounted. Default `/api/reviewapp-annotate`.                                                                                                              |
-| `tokenTtlSeconds?`      | How long a sign-in lasts. Default 12 hours.                                                                                                                                  |
-| `images?`               | Where screenshots and pasted images are stored: a branch of the repo (default), or your own storage. See [Where images go](#where-images-go).                                |
-| `onEvent?`              | Called after a thread, a reply or a thread being ticked off is saved to the PR, to tell people. See [Notifications](#notifications).                                         |
-| `waitUntil?`            | Keeps `onEvent` running after the response is sent (Vercel's `waitUntil`, Next's `after`). Without it, a comment waits for `onEvent`.                                        |
-| `onError?`              | Called with unexpected errors, so you can log or report them.                                                                                                                |
+| Option                  | Purpose                                                                                                                                                                                                                                                        |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `github`                | The GitHub App's `{ appId, privateKey }`. It reads PR comments and writes the review comment.                                                                                                                                                                  |
+| `repos`                 | The `owner/name` repos whose PRs have review apps.                                                                                                                                                                                                             |
+| `tokenSecret`           | Secret (16+ characters) used to sign the widget's sign-in tokens. Changing it signs everyone out.                                                                                                                                                              |
+| `authenticate(request)` | Returns the signed-in user `{ id, name, image? }` from your own session, `null` if signed out, or a `Response` to send instead (e.g. a 403 for non-teammates).                                                                                                 |
+| `signInUrl(returnTo)`   | Where to send signed-out users. After signing in, send them back to `returnTo`.                                                                                                                                                                                |
+| `additionalProviders?`  | Extra hosts to find review apps on, besides the built-in Vercel, Cloudflare and Netlify. See [Custom providers](#custom-providers).                                                                                                                            |
+| `lock?`                 | Runs writes to a PR's comment one at a time, since GitHub can't safely merge two simultaneous edits. Defaults to a lock built on a git ref; pass your own to save API calls.                                                                                   |
+| `sharedCache?`          | A key-value store (Redis, KV, ...) shared by your server instances. Speeds up cold starts by remembering which PR each review app belongs to.                                                                                                                  |
+| `basePath?`             | Where the server is mounted. Default `/api/reviewapp-annotate`.                                                                                                                                                                                                |
+| `tokenTtlSeconds?`      | How long a sign-in lasts. Default 12 hours.                                                                                                                                                                                                                    |
+| `images?`               | Where screenshots and pasted images are stored: a branch of the repo (default), or your own storage. See [Where images go](#where-images-go).                                                                                                                  |
+| `imageProxy?`           | Lets screenshots show images from other sites that send no CORS headers, by fetching them on the server (signed-in reviewers only, public URLs only, images up to 10MB). Default `true`; set `false` if the server can reach private hosts it shouldn't fetch. |
+| `onEvent?`              | Called after a thread, a reply or a thread being ticked off is saved to the PR, to tell people. See [Notifications](#notifications).                                                                                                                           |
+| `waitUntil?`            | Keeps `onEvent` running after the response is sent (Vercel's `waitUntil`, Next's `after`). Without it, a comment waits for `onEvent`.                                                                                                                          |
+| `onError?`              | Called with unexpected errors, so you can log or report them.                                                                                                                                                                                                  |
 
 Example with the optional settings:
 
